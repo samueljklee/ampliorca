@@ -190,6 +190,9 @@ export class StructuredAgentSessionStatusFeed {
     const summary = this.summaryFor(sessionId, session, journal ?? session.journal)
     const previous = this.published.get(sessionId)
     if (previous && summariesEqual(previous, summary)) {
+      if (!this.ownership.matchesLocation(sessionId, session.params.location)) {
+        this.sink(summary, session.params.location)
+      }
       return
     }
     this.published.set(sessionId, summary)

@@ -20,6 +20,16 @@ export class StructuredAgentSessionStatusOwnership {
 
   constructor(private readonly sink: () => StructuredAgentSessionStatusSink | undefined) {}
 
+  matchesLocation(sessionId: string, location: AgentSessionExecutionLocation): boolean {
+    const subject = this.subjects.get(sessionId)
+    return (
+      subject?.executionHostId === location.executionHostId &&
+      subject.wslDistro === location.wslDistro &&
+      subject.workspaceId === location.workspaceId &&
+      subject.workspaceKind === location.workspaceKind
+    )
+  }
+
   publish(summary: AgentSessionStatusSummary, location?: AgentSessionExecutionLocation): void {
     const sink = this.sink()
     if (!sink || (!location && !this.subjects.has(summary.sessionId))) {
