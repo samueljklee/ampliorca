@@ -20,11 +20,13 @@ import type { AiVaultScanOptions } from './session-scanner-types'
 
 // Agents whose session IS the directory holding the scanned file: everything
 // beside it belongs to the same session (rovo's session_context.json, grok's
-// chat_history.jsonl), so the directory is the only complete delete unit.
+// chat_history.jsonl, amplifier's transcript.jsonl/context-intelligence/audits),
+// so the directory is the only complete delete unit.
 const AI_VAULT_WHOLE_DIRECTORY_DELETE_AGENTS = new Set<AiVaultDeletableAgent>([
   'rovo',
   'grok',
-  'cline'
+  'cline',
+  'amplifier'
 ])
 
 export type ValidateAiVaultSessionDeleteTargetArgs = {

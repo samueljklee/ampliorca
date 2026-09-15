@@ -29,6 +29,10 @@ export type AiVaultDeleteSessionResult =
 // - codex: session_index.jsonl plus hardlink aliases between the Orca-managed
 //   home and ~/.codex, so a one-sided delete reappears on the next scan.
 // - opencode 1.17.x: a SQLite row, not a file.
+// - amplifier-agent: its scanned file is context-intelligence/metadata.json, one
+//   level deeper than amplifier's own sessions/<id>/metadata.json -- the whole
+//   session directory is two dirname()s up, not one, so it doesn't fit the
+//   whole-directory-delete shape below without its own case. Not yet added.
 export const AI_VAULT_DELETABLE_AGENTS = [
   'gemini',
   'copilot',
@@ -42,7 +46,8 @@ export const AI_VAULT_DELETABLE_AGENTS = [
   'claude',
   'rovo',
   'grok',
-  'cline'
+  'cline',
+  'amplifier'
 ] as const satisfies readonly AiVaultAgent[]
 
 export type AiVaultDeletableAgent = (typeof AI_VAULT_DELETABLE_AGENTS)[number]
