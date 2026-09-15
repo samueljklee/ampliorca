@@ -280,7 +280,13 @@ export const AI_VAULT_AGENT_SOURCES: AiVaultAgentSourceTable = {
     // duplicate the parent as an untitled row.
     filePredicate: (filePath) =>
       basename(filePath) === 'metadata.json' &&
-      !basename(dirname(filePath)).startsWith('0000000000000000-')
+      !basename(dirname(filePath)).startsWith('0000000000000000-'),
+    // Why: every session also nests a parallel context-intelligence/metadata.json
+    // (a newer, versioned event-log format amplifier is migrating toward) one
+    // level down. Without pruning it, its basename also matches above, but it has
+    // no sibling transcript.jsonl of its own -- every such match parsed as a
+    // real, empty session. Depth 0 is a child of the root.
+    directoryPredicate: (name) => name !== 'context-intelligence'
   }
 }
 

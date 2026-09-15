@@ -86,6 +86,14 @@ export function parseAmplifierSessionContent(
     messages: messageSink
   })
   accumulator.cwd = extractString(metadata.working_dir)
+  // Why: amplifier generates an AI summary title asynchronously after enough of
+  // the conversation exists (metadata.name / name_generated_at); prefer it over
+  // the first-message fallback below when present, same layering finalizeSession
+  // already gives every other parser (title beats fallbackTitle beats generated).
+  const generatedName = extractString(metadata.name)
+  if (generatedName) {
+    accumulator.title = normalizeTitleText(generatedName)
+  }
   updateTimeline(accumulator, metadata.created)
 
   if (transcriptContent) {
