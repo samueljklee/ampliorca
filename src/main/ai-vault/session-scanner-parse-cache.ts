@@ -80,6 +80,11 @@ function resumableStateFactoryFor(
     case 'kimi':
     case 'opencode':
     case 'rovo':
+    // Why: transcript.jsonl is append-only JSONL, a candidate for the
+    // incremental fold above, but no ResumableSessionParseState factory
+    // exists for it yet -- whole-file reparse only, same as cline/kimi/etc.
+    // falls through
+    case 'amplifier':
       return null
   }
 }

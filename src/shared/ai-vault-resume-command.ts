@@ -229,6 +229,11 @@ function buildAgentResumeInvocation(
       return `${baseCommand} --resume ${sessionArg}`
     case 'antigravity':
       return `${baseCommand} --conversation ${sessionArg}`
+    case 'amplifier':
+      // Why: `amplifier resume <id>` reopens the session interactively with no
+      // new prompt required, unlike `run --resume` which expects one -- the
+      // exact fit for a History-panel "keep talking" resume.
+      return `${baseCommand} resume ${sessionArg}`
   }
 }
 

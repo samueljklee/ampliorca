@@ -54,6 +54,7 @@ const DROID_SESSIONS_DIR = join(homedir(), '.factory', 'sessions')
 const DROID_PROJECTS_DIR = join(homedir(), '.factory', 'projects')
 const CLINE_SESSIONS_DIR =
   process.env.CLINE_SESSION_DATA_DIR?.trim() || join(homedir(), '.cline', 'data', 'sessions')
+const AMPLIFIER_PROJECTS_DIR = join(homedir(), '.amplifier', 'projects')
 
 /**
  * Where one agent's session files live and which of them count as sessions.
@@ -263,6 +264,23 @@ export const AI_VAULT_AGENT_SOURCES: AiVaultAgentSourceTable = {
     // only those (not the sibling agents/*/wire.jsonl transcripts).
     filePredicate: (filePath) =>
       basename(filePath) === 'state.json' && basename(dirname(filePath)).startsWith('session_')
+  },
+  amplifier: {
+    rootDirs: (options, wslHomeDirs) =>
+      sessionRootDirs(options.amplifierProjectsDir ?? AMPLIFIER_PROJECTS_DIR, wslHomeDirs, [
+        '.amplifier',
+        'projects'
+      ]),
+    extensions: ['.json'],
+    // Why: each session is <projects>/<sanitized-cwd>/sessions/<id>/metadata.json,
+    // with a sibling transcript.jsonl read by the parser. Sub-agent (delegate())
+    // sessions share the same shape but their <id> directory is prefixed
+    // `0000000000000000-`; excluded here for the same reason Claude prunes its
+    // Task-subagent transcripts -- not independently resumable, would just
+    // duplicate the parent as an untitled row.
+    filePredicate: (filePath) =>
+      basename(filePath) === 'metadata.json' &&
+      !basename(dirname(filePath)).startsWith('0000000000000000-')
   }
 }
 

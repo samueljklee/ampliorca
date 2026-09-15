@@ -18,6 +18,7 @@ import { parseCopilotSessionFile } from './session-scanner-copilot-parser'
 import { parseCursorSessionFile } from './session-scanner-cursor-parser'
 import { parseHermesSessionFile } from './session-scanner-hermes-parser'
 import { parseOpenCodeSessionFile } from './session-scanner-opencode-parser'
+import { parseAmplifierSessionFile } from './session-scanner-amplifier-parser'
 import type { SessionFileCandidate } from './session-scanner-types'
 import type { TranscriptMessageSink } from './session-transcript-consumers'
 
@@ -100,5 +101,7 @@ export async function parseAgentSessionFile(
       return parseDevinSessionFile(candidate.file, platform, messages)
     case 'kimi':
       return parseKimiSessionFile(candidate.file, platform, messages)
+    case 'amplifier':
+      return parseAmplifierSessionFile(candidate.file, platform, messages)
   }
 }
