@@ -37,3 +37,5 @@ export type TuiAgent =
   | 'ante' // Ante (Antigma Labs)
   | 'trae' // Trae CLI
   | 'prime-agent' // Prime Agent (Prime Intellect)
+  | 'amplifier' // Amplifier (microsoft/amplifier)
+  | 'amplifier-agent' // Amplifier Agent (microsoft/amplifier-agent engine, via wrapper)

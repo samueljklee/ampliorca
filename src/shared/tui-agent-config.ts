@@ -288,6 +288,26 @@ const TUI_AGENT_CONFIG_SOURCE: Record<TuiAgent, TuiAgentConfigSource> = {
     detectCmd: 'devin',
     // Why: `devin -- <prompt>` auto-submits immediately (docs.devin.ai/cli), so start the REPL with no argv prompt.
     promptInjectionMode: 'stdin-after-start'
+  },
+  amplifier: {
+    detectCmd: 'amplifier',
+    // Why: `amplifier run [PROMPT]` takes the task as positional argv, same as Claude/Codex;
+    // `--mode chat` guarantees an interactive session even when a prompt is also appended.
+    launchCmd: 'amplifier run --mode chat',
+    promptInjectionMode: 'argv',
+    // Why: separator so prompts starting with `-` aren't parsed as amplifier CLI flags.
+    argvPromptSeparator: '--'
+  },
+  'amplifier-agent': {
+    // Why: the real engine binary is `amplifier-agent`, but it runs one turn per invocation
+    // and exits (no native REPL) -- detect the engine, launch the bundled wrapper instead.
+    detectCmd: 'amplifier-agent',
+    // Why: resources/agent-wrappers/amplifier-agent-repl.mjs loops stdin -> `amplifier-agent
+    // run --resume` per line, reusing a worktree-pinned session id, to simulate a persistent
+    // session the way every other TUI agent here provides one natively.
+    launchCmd: 'amplifier-agent-repl',
+    expectedProcess: 'amplifier-agent-repl',
+    promptInjectionMode: 'stdin-after-start'
   }
 }
 
