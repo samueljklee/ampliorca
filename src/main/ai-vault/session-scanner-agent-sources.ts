@@ -55,6 +55,11 @@ const DROID_PROJECTS_DIR = join(homedir(), '.factory', 'projects')
 const CLINE_SESSIONS_DIR =
   process.env.CLINE_SESSION_DATA_DIR?.trim() || join(homedir(), '.cline', 'data', 'sessions')
 const AMPLIFIER_PROJECTS_DIR = join(homedir(), '.amplifier', 'projects')
+const AMPLIFIER_AGENT_WORKSPACES_DIR = join(
+  resolveAbsoluteDirOverride(process.env.AMPLIFIER_AGENT_HOME, join(homedir(), '.amplifier-agent')),
+  'state',
+  'workspaces'
+)
 
 /**
  * Where one agent's session files live and which of them count as sessions.
@@ -287,6 +292,33 @@ export const AI_VAULT_AGENT_SOURCES: AiVaultAgentSourceTable = {
     // no sibling transcript.jsonl of its own -- every such match parsed as a
     // real, empty session. Depth 0 is a child of the root.
     directoryPredicate: (name) => name !== 'context-intelligence'
+  },
+  'amplifier-agent': {
+    rootDirs: (options, wslHomeDirs) =>
+      sessionRootDirs(
+        options.amplifierAgentStateDir ?? AMPLIFIER_AGENT_WORKSPACES_DIR,
+        wslHomeDirs,
+        ['.amplifier-agent', 'state', 'workspaces']
+      ),
+    extensions: ['.json'],
+    // Why: unlike amplifier's own metadata.json, amplifier-agent's top-level
+    // metadata.json is sparse crash-recovery state (observed: literally
+    // {"last_turn": "complete"}) -- session identity (session_id, working_dir,
+    // started_at) lives one level down instead, in the same
+    // context-intelligence/metadata.json format amplifier also writes. That
+    // nested file is matched here on purpose; the parser reads the session
+    // dir's transcript.jsonl (one level up from context-intelligence) for
+    // message content. Sub-agent (delegate()) sessions are excluded by the
+    // same `0000000000000000-` directory-name prefix convention as amplifier's.
+    filePredicate: (filePath) => {
+      if (basename(filePath) !== 'metadata.json') {
+        return false
+      }
+      if (basename(dirname(filePath)) !== 'context-intelligence') {
+        return false
+      }
+      return !basename(dirname(dirname(filePath))).startsWith('0000000000000000-')
+    }
   }
 }
 

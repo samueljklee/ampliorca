@@ -187,6 +187,12 @@ function defaultAiVaultResumeCommandBase(agent: AiVaultAgent): string {
   if (agent === 'rovo') {
     return 'acli'
   }
+  if (agent === 'amplifier-agent') {
+    // Why: detectCmd here is the raw engine binary (used for install detection);
+    // resuming has to go through the persistent-session wrapper instead, which
+    // also knows how to resolve --resume <id>'s owning workspace.
+    return 'amplifier-agent-repl'
+  }
   return TUI_AGENT_CONFIG[agent].detectCmd
 }
 
@@ -234,6 +240,11 @@ function buildAgentResumeInvocation(
       // new prompt required, unlike `run --resume` which expects one -- the
       // exact fit for a History-panel "keep talking" resume.
       return `${baseCommand} resume ${sessionArg}`
+    case 'amplifier-agent':
+      // Why: baseCommand here is 'amplifier-agent-repl' (see
+      // defaultAiVaultResumeCommandBase below), not the raw engine -- the
+      // wrapper resolves which workspace owns this session id itself.
+      return `${baseCommand} --resume ${sessionArg}`
   }
 }
 

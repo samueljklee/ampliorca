@@ -19,6 +19,7 @@ import { parseCursorSessionFile } from './session-scanner-cursor-parser'
 import { parseHermesSessionFile } from './session-scanner-hermes-parser'
 import { parseOpenCodeSessionFile } from './session-scanner-opencode-parser'
 import { parseAmplifierSessionFile } from './session-scanner-amplifier-parser'
+import { parseAmplifierAgentSessionFile } from './session-scanner-amplifier-agent-parser'
 import type { SessionFileCandidate } from './session-scanner-types'
 import type { TranscriptMessageSink } from './session-transcript-consumers'
 
@@ -103,5 +104,7 @@ export async function parseAgentSessionFile(
       return parseKimiSessionFile(candidate.file, platform, messages)
     case 'amplifier':
       return parseAmplifierSessionFile(candidate.file, platform, messages)
+    case 'amplifier-agent':
+      return parseAmplifierAgentSessionFile(candidate.file, platform, messages)
   }
 }

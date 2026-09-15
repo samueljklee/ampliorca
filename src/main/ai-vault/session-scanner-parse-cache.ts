@@ -85,6 +85,10 @@ function resumableStateFactoryFor(
     // exists for it yet -- whole-file reparse only, same as cline/kimi/etc.
     // falls through
     case 'amplifier':
+    // Why: same as amplifier -- transcript.jsonl is append-only JSONL, but no
+    // ResumableSessionParseState factory exists yet.
+    // falls through
+    case 'amplifier-agent':
       return null
   }
 }

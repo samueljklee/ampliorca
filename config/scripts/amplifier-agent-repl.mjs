@@ -11,47 +11,86 @@
 // pinned to this worktree so continuity survives pane restarts, hibernation, and reopening
 // the worktree later.
 //
-// Status: first draft, not yet empirically verified against a built Orca -- in particular
+// Resume (`amplifier-agent-repl --resume <sessionId>`, from Agent Session History): the
+// session's original --workspace name is required to find its state directory
+// ($AMPLIFIER_AGENT_HOME/state/workspaces/<workspace>/sessions/<id>/), but Orca's resume
+// command only carries the session id (matching the dominant `--resume <id>` shape used by
+// most other agents in ai-vault-resume-command.ts) -- so this script resolves the owning
+// workspace itself by searching state/workspaces/*/sessions/<id>.
+//
+// Status: not yet empirically verified against a built Orca -- in particular
 // `expectedProcess` in tui-agent-config.ts assumes this script's process is identifiable as
 // `amplifier-agent-repl` (true on macOS/Linux once installed via the package.json `bin`
 // entry; unconfirmed on Windows, where bin shims can surface as `node` in the process list).
 
 import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 
 const cwd = process.cwd()
-const workspace = basename(cwd) || 'amplifier-agent-orca'
-
-// Why: persisting the session id in the worktree (not just in this process's memory) means
-// continuity survives Orca restarting the pane, hibernating the agent, or the user reopening
-// the worktree in a later Orca session -- matching what every native agent gets from its own
-// on-disk session store.
-const sessionFile = join(cwd, '.amplifier-agent-session-id')
-function loadOrCreateSessionId() {
-  if (existsSync(sessionFile)) {
-    const existing = readFileSync(sessionFile, 'utf8').trim()
-    if (existing) {
-      return existing
-    }
-  }
-  const id = randomUUID()
-  writeFileSync(sessionFile, id, 'utf8')
-  return id
-}
-const sessionId = loadOrCreateSessionId()
 
 // Why: keep amplifier-agent's state under its own home, separate from the unrelated `amplifier`
 // CLI's `~/.amplifier` -- explicit rather than relying on whatever default ships upstream.
-const env = {
-  ...process.env,
-  AMPLIFIER_AGENT_HOME: process.env.AMPLIFIER_AGENT_HOME ?? join(homedir(), '.amplifier-agent')
+const amplifierAgentHome = process.env.AMPLIFIER_AGENT_HOME ?? join(homedir(), '.amplifier-agent')
+const env = { ...process.env, AMPLIFIER_AGENT_HOME: amplifierAgentHome }
+const workspacesRoot = join(amplifierAgentHome, 'state', 'workspaces')
+
+function findWorkspaceForSession(sessionId) {
+  if (!existsSync(workspacesRoot)) {
+    return null
+  }
+  for (const workspaceName of readdirSync(workspacesRoot)) {
+    if (existsSync(join(workspacesRoot, workspaceName, 'sessions', sessionId))) {
+      return workspaceName
+    }
+  }
+  return null
 }
 
-let turnCount = 0
+const sessionFile = join(cwd, '.amplifier-agent-session-id')
+
+function parseResumeArg() {
+  const flagIndex = process.argv.indexOf('--resume')
+  return flagIndex !== -1 ? (process.argv[flagIndex + 1] ?? null) : null
+}
+
+// Why: whether the very first turn this process sends needs `--resume` depends on
+// whether the underlying amplifier-agent session already has prior turns, NOT on
+// whether THIS process has sent one yet -- reopening a worktree pane spawns a brand
+// new wrapper process against a session id that already has real history. Getting
+// this wrong would silently drop `--resume` on it and desync the transcript from
+// what the session actually remembers.
+let sessionId
+let workspace
+let isContinuingExistingSession
+
+const resumeSessionId = parseResumeArg()
+if (resumeSessionId) {
+  const foundWorkspace = findWorkspaceForSession(resumeSessionId)
+  sessionId = resumeSessionId
+  workspace = foundWorkspace ?? basename(cwd) ?? 'amplifier-agent-orca'
+  if (!foundWorkspace) {
+    console.error(
+      `[amplifier-agent-repl] warning: could not locate the workspace for session ${resumeSessionId} under ${workspacesRoot}; guessing workspace "${workspace}"`
+    )
+  }
+  isContinuingExistingSession = true
+  writeFileSync(sessionFile, sessionId, 'utf8')
+} else if (existsSync(sessionFile) && readFileSync(sessionFile, 'utf8').trim()) {
+  sessionId = readFileSync(sessionFile, 'utf8').trim()
+  workspace = basename(cwd) || 'amplifier-agent-orca'
+  isContinuingExistingSession = true
+} else {
+  sessionId = randomUUID()
+  workspace = basename(cwd) || 'amplifier-agent-orca'
+  isContinuingExistingSession = false
+  writeFileSync(sessionFile, sessionId, 'utf8')
+}
+
+let sentFirstTurn = false
 
 function runTurn(prompt) {
   return new Promise((resolve) => {
@@ -63,7 +102,7 @@ function runTurn(prompt) {
       '--workspace',
       workspace
     ]
-    if (turnCount > 0) {
+    if (sentFirstTurn || isContinuingExistingSession) {
       args.push('--resume')
     }
     args.push(prompt)
@@ -74,7 +113,7 @@ function runTurn(prompt) {
       stdio: ['ignore', 'inherit', 'inherit']
     })
     child.on('exit', (code) => {
-      turnCount += 1
+      sentFirstTurn = true
       if (code !== 0 && code !== null) {
         console.error(`[amplifier-agent-repl] turn exited with code ${code}`)
       }
