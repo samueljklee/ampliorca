@@ -308,6 +308,22 @@ export const getAgentCatalog = createLocalizedCatalog((): AgentCatalogEntry[] =>
     cmd: 'openclaw',
     faviconDomain: 'openclaw.ai',
     homepageUrl: 'https://github.com/openclaw/openclaw'
+  },
+  {
+    id: 'amplifier',
+    label: translate('auto.lib.agent.catalog.amplifier_label', 'Amplifier'),
+    cmd: 'amplifier',
+    // Why: no faviconDomain/iconUrl yet -- no dedicated icon asset exists for this agent,
+    // so it falls back to the AgentLetterIcon glyph until one is added.
+    homepageUrl: 'https://github.com/microsoft/amplifier'
+  },
+  {
+    id: 'amplifier-agent',
+    label: translate('auto.lib.agent.catalog.amplifier_agent_label', 'Amplifier Agent'),
+    // Why: match TUI_AGENT_CONFIG['amplifier-agent'].detectCmd (the real engine binary),
+    // not the amplifier-agent-repl wrapper it launches -- same convention as kiro/continue/qwen-code.
+    cmd: 'amplifier-agent',
+    homepageUrl: 'https://github.com/microsoft/amplifier-agent'
   }
 ])
 

@@ -34,7 +34,9 @@ const sessionFile = join(cwd, '.amplifier-agent-session-id')
 function loadOrCreateSessionId() {
   if (existsSync(sessionFile)) {
     const existing = readFileSync(sessionFile, 'utf8').trim()
-    if (existing) return existing
+    if (existing) {
+      return existing
+    }
   }
   const id = randomUUID()
   writeFileSync(sessionFile, id, 'utf8')
@@ -61,7 +63,9 @@ function runTurn(prompt) {
       '--workspace',
       workspace
     ]
-    if (turnCount > 0) args.push('--resume')
+    if (turnCount > 0) {
+      args.push('--resume')
+    }
     args.push(prompt)
 
     const child = spawn('amplifier-agent', args, {
@@ -78,7 +82,9 @@ function runTurn(prompt) {
     })
     child.on('error', (err) => {
       console.error(`[amplifier-agent-repl] failed to spawn amplifier-agent: ${err.message}`)
-      console.error('[amplifier-agent-repl] is amplifier-agent installed and on PATH? see: https://github.com/microsoft/amplifier-agent#install')
+      console.error(
+        '[amplifier-agent-repl] is amplifier-agent installed and on PATH? see: https://github.com/microsoft/amplifier-agent#install'
+      )
       resolve()
     })
   })
