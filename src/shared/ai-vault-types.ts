@@ -97,6 +97,11 @@ export type AiVaultSession = {
   branch: string | null
   model: string | null
   filePath: string
+  /** Set only when filePath (the scanned candidate -- identity/delete/cache key)
+   * isn't the file to actually read: amplifier and amplifier-agent scan a
+   * metadata file, with the real conversation in a sibling transcript.jsonl.
+   * View Log should open this when present, filePath otherwise. */
+  logFilePath?: string
   codexHome: string | null
   createdAt: string | null
   updatedAt: string | null

@@ -154,6 +154,7 @@ const CACHED_SESSION_FIELDS = {
   branch: true,
   model: true,
   filePath: true,
+  logFilePath: true,
   codexHome: true,
   createdAt: true,
   updatedAt: true,

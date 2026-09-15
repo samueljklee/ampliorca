@@ -97,6 +97,10 @@ export function parseAmplifierSessionContent(
   updateTimeline(accumulator, metadata.created)
 
   if (transcriptContent) {
+    // Why: filePath (above) is metadata.json -- needed for identity/delete/cache
+    // keying -- but the actual conversation a human would want to read (View
+    // Log) is this sibling transcript.
+    accumulator.logFilePath = amplifierTranscriptPathForMetadata(file.path)
     for (const line of transcriptContent.split('\n')) {
       if (!line.trim()) {
         continue

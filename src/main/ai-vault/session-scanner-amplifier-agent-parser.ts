@@ -101,6 +101,10 @@ export function parseAmplifierAgentSessionContent(
   updateTimeline(accumulator, metadata.started_at)
 
   if (transcriptContent) {
+    // Why: filePath (above) is context-intelligence/metadata.json -- needed for
+    // identity/cache keying -- but the actual conversation a human would want
+    // to read (View Log) is the session dir's own transcript.jsonl.
+    accumulator.logFilePath = amplifierAgentTranscriptPathForContextIntelligenceMetadata(file.path)
     for (const line of transcriptContent.split('\n')) {
       if (!line.trim()) {
         continue

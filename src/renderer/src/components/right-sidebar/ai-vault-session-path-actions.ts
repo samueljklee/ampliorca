@@ -25,9 +25,12 @@ export function canUseLocalAiVaultSessionPathActions(
  * a provider-owned log-resource contract.
  */
 export function canOpenAiVaultSessionLogInOrca(
-  session: Pick<AiVaultSession, 'filePath' | 'executionHostId'>
+  session: Pick<AiVaultSession, 'filePath' | 'executionHostId' | 'logFilePath'>
 ): boolean {
-  const filePath = session.filePath?.trim()
+  // Why: validate whichever path Open/View Log would actually open -- for
+  // amplifier/amplifier-agent that's logFilePath (the real transcript), not
+  // filePath (the scanned metadata file used for identity/delete/cache keying).
+  const filePath = (session.logFilePath ?? session.filePath)?.trim()
   if (!filePath) {
     return false
   }

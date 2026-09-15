@@ -132,6 +132,12 @@ export type SessionAccumulator = {
   branch: string | null
   model: string | null
   filePath: string
+  // Set only when the scanned candidate (filePath, used for identity/delete/cache
+  // keying) isn't the file a human would actually want to read -- amplifier and
+  // amplifier-agent scan a metadata file, with the real conversation in a
+  // sibling transcript.jsonl. Null means "filePath is already the right file to
+  // view" (true for most agents, e.g. Claude's own session file IS its .jsonl).
+  logFilePath: string | null
   createdAt: string | null
   updatedAt: string | null
   modifiedAt: string
