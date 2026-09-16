@@ -14,8 +14,15 @@ import { drainAgentHookSpool, type SpoolRecord } from '../../../shared/agent-hoo
 import { clearAllListenerCaches } from '../../../shared/agent-hook-listener/listener-state'
 import { trackEmptyPaneKeyHook } from './server-transport-rules'
 import { AgentHookServerRuntimeEnv } from './server-runtime-env'
+import { AmplifierBridgeTailer } from '../amplifier-bridge-tailer'
 
 export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv {
+  // Why: Amplifier has no hook script to push events -- this polls
+  // hooks-orca-bridge's own JSONL feed instead. Owned by the same
+  // start()/stop() lifecycle as everything else here (created once per
+  // "not started" -> "started" transition, torn down on stop()).
+  private amplifierBridgeTailer: AmplifierBridgeTailer | null = null
+
   /** Start the loopback listener after hydration and spool replay have settled. */
   async start(options?: {
     env?: string
@@ -51,6 +58,12 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv
           ingest: (record: SpoolRecord) => this.ingestSpoolRecord(record)
         })
       }
+      // Why: a genuinely live source, not spool replay -- ingestLiveFileRecord,
+      // not ingestSpoolRecord (isReplay stays false; see server-ingest-normalization.ts).
+      this.amplifierBridgeTailer = new AmplifierBridgeTailer((record) =>
+        this.ingestLiveFileRecord(record)
+      )
+      this.amplifierBridgeTailer.start()
       this.ownerStateInitialized = true
     }
     const handleRequest = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -175,6 +188,8 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv
   stop(): void {
     // Why: flush the pending debounced write before clearing the map, else a hook <250ms before quit is lost on relaunch.
     this.flushStatusPersistSync()
+    this.amplifierBridgeTailer?.stop()
+    this.amplifierBridgeTailer = null
     this.rollbackTransportStart()
     this.env = 'production'
     this.onAgentStatus = null

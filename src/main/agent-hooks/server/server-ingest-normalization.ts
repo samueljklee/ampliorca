@@ -78,4 +78,48 @@ export abstract class AgentHookServerIngestNormalization extends AgentHookServer
       this.withdrawReplayObservation(this.resolvePaneKeyAlias(event.paneKey))
     }
   }
+
+  /**
+   * Public ingestion entry point for a file-tailed live record (currently:
+   * hooks-orca-bridge's own JSONL feed -- see AmplifierBridgeTailer). Same
+   * normalize -> disposition -> authority -> apply sequence as
+   * ingestSpoolRecord, deliberately NOT shared as one helper: a spool record
+   * is durable replay evidence of something already known to have happened
+   * (isReplay: true, plus a withdraw-replay-observation step at the end);
+   * this is a genuinely live, first-time observation, so neither applies.
+   *
+   * Public (not protected) on purpose -- this is the one external, non-HTTP
+   * ingress this server accepts locally, parallel in spirit to the existing
+   * public `ingestRemote()` for the SSH-relay case, but for a local file
+   * source instead of a remote trust boundary.
+   */
+  ingestLiveFileRecord(record: SpoolRecord): void {
+    if (!isAgentHookSource(record.source)) {
+      return
+    }
+    const body = this.normalizeHookBodyPaneKeyAlias(buildSpoolHookBody(record))
+    const normalized = this.normalizeLocalHookPayload(record.source, body)
+    if (!normalized.event) {
+      return
+    }
+    const statusDisposition = this.getAgentStatusDisposition(normalized.event.paneKey, {
+      source: record.source,
+      hookEventName: normalized.event.hookEventName,
+      isReplay: false,
+      hasExplicitPrompt: normalized.event.hasExplicitPrompt,
+      launchToken: normalized.event.launchToken
+    })
+    if (statusDisposition === 'suppress') {
+      return
+    }
+    const event =
+      statusDisposition === 'restart'
+        ? { ...normalized.event, launchToken: undefined }
+        : normalized.event
+    if (statusDisposition === 'restart') {
+      this.observations.rebind(event.paneKey)
+    }
+    this.recordCurrentAuthorityObservation(event)
+    this.applyNormalizedStatus(event, normalized.onAccepted)
+  }
 }
