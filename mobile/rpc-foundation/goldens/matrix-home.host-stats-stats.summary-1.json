@@ -3,9 +3,9 @@
   "family": "home.host-stats",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "a9e0780298a1443664e7ae02056168aa34d67556c9c056d51a82c7b4a73ad35b",
   "scenarioSha256": "5518e08c1b20f0ddd4cb6bc81ff9af032b1a38daf24f3d3497bac5df8b2d0ec5",
   "platform": "darwin",
@@ -44,15 +44,6 @@
             "error": "inner refused",
             "ok": false
           }
-        }
-      }
-    },
-    "0632d58191fb": {
-      "name": "stats",
-      "value": {
-        "host-1": {
-          "activeWorktrees": 1,
-          "totalWorktrees": 3
         }
       }
     },
@@ -123,13 +114,14 @@
         }
       }
     },
-    "2f0d38ebf67c": {
+    "334d5072a3ae": {
       "name": "stats",
       "value": {
         "host-1": {
           "$rpc": "undefined"
         }
-      }
+      },
+      "sent": 1
     },
     "44136fa355b3": {},
     "556edbbc8712": {
@@ -137,42 +129,16 @@
         "$rpc": "null"
       }
     },
-    "5d85cea3ab32": {
-      "name": "stats",
-      "value": {
-        "host-1": {
-          "error": "inner refused",
-          "ok": false
-        }
-      }
-    },
-    "6fe0cca6ed2a": {
-      "name": "stats",
-      "value": {
-        "host-1": {
-          "error": "refused"
-        }
-      }
-    },
-    "7b564b8fe22e": {
+    "71f63720e55d": {
       "name": "stats",
       "value": {
         "host-1": {
           "$rpc": "null"
         }
-      }
+      },
+      "sent": 1
     },
-    "7bf81b1e94c5": {
-      "name": "stats.summary#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"stats.summary\"}"
-    },
-    "9a84a7559023": {
-      "host-1": {
-        "activeWorktrees": 1,
-        "totalWorktrees": 3
-      }
-    },
-    "9b2c7b6a4f74": {
+    "774545f8062f": {
       "name": "stats",
       "value": {
         "host-1": {
@@ -181,6 +147,23 @@
           },
           "ok": false
         }
+      },
+      "sent": 1
+    },
+    "7836888bb6c0": {
+      "name": "stats",
+      "value": {
+        "host-1": {
+          "activeWorktrees": 1,
+          "totalWorktrees": 3
+        }
+      },
+      "sent": 1
+    },
+    "9a84a7559023": {
+      "host-1": {
+        "activeWorktrees": 1,
+        "totalWorktrees": 3
       }
     },
     "9c34abfa17e7": {
@@ -358,6 +341,11 @@
         }
       }
     },
+    "dcf607ac617e": {
+      "name": "stats.summary#1",
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"stats.summary\"}",
+      "sent": 1
+    },
     "e05986a4b6e2": {
       "host-1": {
         "error": "inner refused",
@@ -425,6 +413,16 @@
         }
       }
     },
+    "e242a638aa23": {
+      "name": "stats",
+      "value": {
+        "host-1": {
+          "error": "inner refused",
+          "ok": false
+        }
+      },
+      "sent": 1
+    },
     "eb79a9b3682a": {
       "status": "fulfilled",
       "startedAt": 0,
@@ -432,6 +430,15 @@
       "value": {
         "$rpc": "undefined"
       }
+    },
+    "ec55f57d0b5d": {
+      "name": "stats",
+      "value": {
+        "host-1": {
+          "error": "refused"
+        }
+      },
+      "sent": 1
     },
     "f9b87a5a7a70": {
       "name": "stats.summary#1",
@@ -511,7 +518,7 @@
         "id": "home-host-stats.prelude:stats-pending",
         "observation": {
           "sender": ["a392ac528c2b"],
-          "payloads": ["7bf81b1e94c5"],
+          "payloads": ["dcf607ac617e"],
           "settlements": {
             "load": "eb79a9b3682a"
           },
@@ -523,79 +530,79 @@
         "id": "home-host-stats.normal:settled",
         "observation": {
           "sender": ["0ebcc6f6a4cb"],
-          "payloads": ["7bf81b1e94c5"],
+          "payloads": ["dcf607ac617e"],
           "settlements": {
             "load": "eb79a9b3682a"
           },
           "state": "9a84a7559023",
-          "effects": ["0632d58191fb"]
+          "effects": ["7836888bb6c0"]
         }
       },
       {
         "id": "home-host-stats.result-absent:settled",
         "observation": {
           "sender": ["e180f1e7839f"],
-          "payloads": ["7bf81b1e94c5"],
+          "payloads": ["dcf607ac617e"],
           "settlements": {
             "load": "eb79a9b3682a"
           },
           "state": "c5bfd5f18460",
-          "effects": ["2f0d38ebf67c"]
+          "effects": ["334d5072a3ae"]
         }
       },
       {
         "id": "home-host-stats.result-null:settled",
         "observation": {
           "sender": ["c3fad9087af1"],
-          "payloads": ["7bf81b1e94c5"],
+          "payloads": ["dcf607ac617e"],
           "settlements": {
             "load": "eb79a9b3682a"
           },
           "state": "556edbbc8712",
-          "effects": ["7b564b8fe22e"]
+          "effects": ["71f63720e55d"]
         }
       },
       {
         "id": "home-host-stats.inner-ok-missing:settled",
         "observation": {
           "sender": ["2a8c0c9ced05"],
-          "payloads": ["7bf81b1e94c5"],
+          "payloads": ["dcf607ac617e"],
           "settlements": {
             "load": "eb79a9b3682a"
           },
           "state": "b474d2a02a6a",
-          "effects": ["6fe0cca6ed2a"]
+          "effects": ["ec55f57d0b5d"]
         }
       },
       {
         "id": "home-host-stats.inner-false-string-error:settled",
         "observation": {
           "sender": ["003f84d10dd0"],
-          "payloads": ["7bf81b1e94c5"],
+          "payloads": ["dcf607ac617e"],
           "settlements": {
             "load": "eb79a9b3682a"
           },
           "state": "e05986a4b6e2",
-          "effects": ["5d85cea3ab32"]
+          "effects": ["e242a638aa23"]
         }
       },
       {
         "id": "home-host-stats.inner-false-object-error:settled",
         "observation": {
           "sender": ["fa16031454a3"],
-          "payloads": ["7bf81b1e94c5"],
+          "payloads": ["dcf607ac617e"],
           "settlements": {
             "load": "eb79a9b3682a"
           },
           "state": "9c34abfa17e7",
-          "effects": ["9b2c7b6a4f74"]
+          "effects": ["774545f8062f"]
         }
       },
       {
         "id": "home-host-stats.outer-refused:settled",
         "observation": {
           "sender": ["9e3e7d14abf9"],
-          "payloads": ["7bf81b1e94c5"],
+          "payloads": ["dcf607ac617e"],
           "settlements": {
             "load": "eb79a9b3682a"
           },
@@ -607,7 +614,7 @@
         "id": "home-host-stats.outer-refused-no-message:settled",
         "observation": {
           "sender": ["dc03021bee85"],
-          "payloads": ["7bf81b1e94c5"],
+          "payloads": ["dcf607ac617e"],
           "settlements": {
             "load": "eb79a9b3682a"
           },
@@ -619,7 +626,7 @@
         "id": "home-host-stats.method-not-found:settled",
         "observation": {
           "sender": ["f9b87a5a7a70"],
-          "payloads": ["7bf81b1e94c5"],
+          "payloads": ["dcf607ac617e"],
           "settlements": {
             "load": "eb79a9b3682a"
           },
@@ -631,7 +638,7 @@
         "id": "home-host-stats.transport-rejection:settled",
         "observation": {
           "sender": ["bf78e405c5d4"],
-          "payloads": ["7bf81b1e94c5"],
+          "payloads": ["dcf607ac617e"],
           "settlements": {
             "load": "eb79a9b3682a"
           },
@@ -643,7 +650,7 @@
         "id": "home-host-stats.transport-rejection-no-message:settled",
         "observation": {
           "sender": ["e20353973dc1"],
-          "payloads": ["7bf81b1e94c5"],
+          "payloads": ["dcf607ac617e"],
           "settlements": {
             "load": "eb79a9b3682a"
           },

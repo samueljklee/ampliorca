@@ -3,9 +3,9 @@
   "family": "tasks.linear-connect",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "07a15e900363faa25bc364f5bc1c330f96798abfeaed35210428c2ac558586b8",
   "scenarioSha256": "d1bd7ad9b647a50403953ba01d3a4bcccc5f4020c2aefa6146cca8c7688612c1",
   "platform": "darwin",
@@ -13,9 +13,10 @@
   "projectionVersion": 2,
   "goldenFormatVersion": 5,
   "values": {
-    "002ad269dd44": {
-      "name": "showLinearConnect",
-      "value": false
+    "0c51558ed744": {
+      "name": "provider",
+      "value": "linear",
+      "sent": 1
     },
     "2f8d5603d8c0": {
       "connected": true,
@@ -24,21 +25,30 @@
       "providers": ["github", "linear"],
       "state": "idle"
     },
-    "3f0218e5abc6": {
+    "4870152af5d4": {
       "name": "linearConnectState",
-      "value": "idle"
+      "value": "connecting",
+      "sent": 0
     },
-    "50941ff8a9e3": {
+    "6469c8226ac8": {
+      "name": "linear.connect#1",
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"linear.connect\",\"params\":{\"apiKey\":\"lin_api_key\"}}",
+      "sent": 1
+    },
+    "69d74e72326c": {
       "name": "linearConnected",
-      "value": true
+      "value": true,
+      "sent": 1
     },
-    "5def091042f5": {
+    "9ea73b6d4ce4": {
       "name": "linearConnectError",
-      "value": ""
+      "value": "",
+      "sent": 0
     },
-    "7c00a7dd4850": {
+    "b314de624efa": {
       "name": "linearApiKeyDraft",
-      "value": ""
+      "value": "",
+      "sent": 1
     },
     "b7f1fad8d45f": {
       "name": "linear.connect#1",
@@ -73,18 +83,6 @@
         }
       }
     },
-    "b9e578e85f05": {
-      "name": "provider",
-      "value": "linear"
-    },
-    "dae705f55c7f": {
-      "name": "linear.connect#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"linear.connect\",\"params\":{\"apiKey\":\"lin_api_key\"}}"
-    },
-    "eafaa34ddedb": {
-      "name": "visibleProviders",
-      "value": ["github", "linear"]
-    },
     "eb79a9b3682a": {
       "status": "fulfilled",
       "startedAt": 0,
@@ -93,9 +91,20 @@
         "$rpc": "undefined"
       }
     },
-    "fb8120f6d4d3": {
+    "f06f609ce6b4": {
       "name": "linearConnectState",
-      "value": "connecting"
+      "value": "idle",
+      "sent": 1
+    },
+    "f4cec40b7d42": {
+      "name": "visibleProviders",
+      "value": ["github", "linear"],
+      "sent": 1
+    },
+    "fe581ce5541b": {
+      "name": "showLinearConnect",
+      "value": false,
+      "sent": 1
     }
   },
   "recording": {
@@ -105,21 +114,21 @@
         "id": "connect-settled",
         "observation": {
           "sender": ["b7f1fad8d45f"],
-          "payloads": ["dae705f55c7f"],
+          "payloads": ["6469c8226ac8"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "connect-0": "eb79a9b3682a"
           },
           "state": "2f8d5603d8c0",
           "effects": [
-            "fb8120f6d4d3",
-            "5def091042f5",
-            "7c00a7dd4850",
-            "3f0218e5abc6",
-            "002ad269dd44",
-            "50941ff8a9e3",
-            "eafaa34ddedb",
-            "b9e578e85f05"
+            "4870152af5d4",
+            "9ea73b6d4ce4",
+            "b314de624efa",
+            "f06f609ce6b4",
+            "fe581ce5541b",
+            "69d74e72326c",
+            "f4cec40b7d42",
+            "0c51558ed744"
           ]
         }
       }

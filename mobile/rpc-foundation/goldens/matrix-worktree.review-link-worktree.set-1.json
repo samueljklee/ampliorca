@@ -3,9 +3,9 @@
   "family": "worktree.review-link",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "5e47c7960b9352753f0751d4ccf5e3ff7fb7b74a63cc4e4df3c3ffdcc6c1e66b",
   "scenarioSha256": "2fc093ec505bfac04a4ff0adab991baeba985253486dbe9e3ec9884b8d5f0920",
   "platform": "darwin",
@@ -307,6 +307,11 @@
         "ok": false
       }
     },
+    "ab2ee9c092a5": {
+      "name": "worktree.set#1",
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.set\",\"params\":{\"worktree\":\"id:repo42::/p\",\"linkedPR\":12}}",
+      "sent": 1
+    },
     "b91c2f7fddc7": {
       "name": "worktree.set#1",
       "args": [
@@ -405,10 +410,6 @@
           "isRpcDeliveryUnknown": true
         }
       }
-    },
-    "c7ae0a3a6e6e": {
-      "name": "worktree.set#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.set\",\"params\":{\"worktree\":\"id:repo42::/p\",\"linkedPR\":12}}"
     },
     "c8de0688e42c": {
       "linkedPR": "unread",
@@ -527,7 +528,7 @@
         "id": "sc-pr-link-set.prelude:pending",
         "observation": {
           "sender": ["2c746c8732cd"],
-          "payloads": ["c7ae0a3a6e6e"],
+          "payloads": ["ab2ee9c092a5"],
           "settlements": {
             "link": "9270aeb7d9c6"
           },
@@ -539,7 +540,7 @@
         "id": "sc-pr-link-set.normal:settled",
         "observation": {
           "sender": ["86441203344c"],
-          "payloads": ["c7ae0a3a6e6e"],
+          "payloads": ["ab2ee9c092a5"],
           "settlements": {
             "link": "fbc958e4d46e"
           },
@@ -551,7 +552,7 @@
         "id": "sc-pr-link-set.result-absent:settled",
         "observation": {
           "sender": ["319aa77fad74"],
-          "payloads": ["c7ae0a3a6e6e"],
+          "payloads": ["ab2ee9c092a5"],
           "settlements": {
             "link": "fbc958e4d46e"
           },
@@ -563,7 +564,7 @@
         "id": "sc-pr-link-set.result-null:settled",
         "observation": {
           "sender": ["3beb771c862a"],
-          "payloads": ["c7ae0a3a6e6e"],
+          "payloads": ["ab2ee9c092a5"],
           "settlements": {
             "link": "fbc958e4d46e"
           },
@@ -575,7 +576,7 @@
         "id": "sc-pr-link-set.inner-ok-missing:settled",
         "observation": {
           "sender": ["e04a0178bf7f"],
-          "payloads": ["c7ae0a3a6e6e"],
+          "payloads": ["ab2ee9c092a5"],
           "settlements": {
             "link": "fbc958e4d46e"
           },
@@ -587,7 +588,7 @@
         "id": "sc-pr-link-set.inner-false-string-error:settled",
         "observation": {
           "sender": ["898327d6d921"],
-          "payloads": ["c7ae0a3a6e6e"],
+          "payloads": ["ab2ee9c092a5"],
           "settlements": {
             "link": "fbc958e4d46e"
           },
@@ -599,7 +600,7 @@
         "id": "sc-pr-link-set.inner-false-object-error:settled",
         "observation": {
           "sender": ["45e5fb9620bf"],
-          "payloads": ["c7ae0a3a6e6e"],
+          "payloads": ["ab2ee9c092a5"],
           "settlements": {
             "link": "fbc958e4d46e"
           },
@@ -611,7 +612,7 @@
         "id": "sc-pr-link-set.outer-refused:settled",
         "observation": {
           "sender": ["c49c62e3c88e"],
-          "payloads": ["c7ae0a3a6e6e"],
+          "payloads": ["ab2ee9c092a5"],
           "settlements": {
             "link": "1b2778bf67a2"
           },
@@ -623,7 +624,7 @@
         "id": "sc-pr-link-set.outer-refused-no-message:settled",
         "observation": {
           "sender": ["35cef38d4b19"],
-          "payloads": ["c7ae0a3a6e6e"],
+          "payloads": ["ab2ee9c092a5"],
           "settlements": {
             "link": "a42570f300ad"
           },
@@ -635,7 +636,7 @@
         "id": "sc-pr-link-set.method-not-found:settled",
         "observation": {
           "sender": ["d10cb6e1e0b5"],
-          "payloads": ["c7ae0a3a6e6e"],
+          "payloads": ["ab2ee9c092a5"],
           "settlements": {
             "link": "fa93ca01f266"
           },
@@ -647,7 +648,7 @@
         "id": "sc-pr-link-set.transport-rejection:settled",
         "observation": {
           "sender": ["b91c2f7fddc7"],
-          "payloads": ["c7ae0a3a6e6e"],
+          "payloads": ["ab2ee9c092a5"],
           "settlements": {
             "link": "a197c20578aa"
           },
@@ -659,7 +660,7 @@
         "id": "sc-pr-link-set.transport-rejection-no-message:settled",
         "observation": {
           "sender": ["c5cfd8d3e2ed"],
-          "payloads": ["c7ae0a3a6e6e"],
+          "payloads": ["ab2ee9c092a5"],
           "settlements": {
             "link": "fb4429083480"
           },

@@ -3,10 +3,10 @@
   "family": "worktree.catalog-snapshot",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
-  "adapterSha256": "6119d409e1958877e4a04b3901f94a3609ac0420f5ca02af20eb8dae5cbf3408",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
+  "adapterSha256": "4e942ddfbaa0ba6bfc2993969276987f6528ac53765d125e99a830e261f93a8e",
   "scenarioSha256": "d2947158840576cbd0f0604ed3d37b0f446c63c6d439b4d1b7def7fe8524523d",
   "platform": "darwin",
   "scenarioVersion": 1,
@@ -60,21 +60,32 @@
       "admitted": "unadmitted",
       "fetched": "unfetched"
     },
-    "2d40d1d38104": {
-      "name": "unhandled-rejection",
-      "value": {
-        "category": "Error",
-        "isRpcDeliveryUnknown": false,
-        "message": "Unsupported observation: function"
-      }
-    },
     "9270aeb7d9c6": {
       "status": "pending",
       "startedAt": 0
     },
-    "a87f1f91dc98": {
-      "name": "worktree.ps#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.ps\",\"params\":{\"limit\":10000,\"afterSnapshotId\":null,\"supportsWorktreeVisibilitySourceDefaults\":true}}"
+    "9948855e8b8d": {
+      "status": "fulfilled",
+      "startedAt": 0,
+      "settledAt": 0,
+      "value": {
+        "kind": "response",
+        "pending": {
+          "admission": {
+            "kind": "full",
+            "snapshotId": "snapshot-1",
+            "worktrees": [
+              {
+                "displayName": "One",
+                "repo": "Repo",
+                "worktreeId": "w-1"
+              }
+            ]
+          },
+          "client": "logical-client",
+          "hostId": "host-1"
+        }
+      }
     },
     "ab1a9ba6301c": {
       "admitted": [
@@ -102,6 +113,11 @@
           "hostId": "host-1"
         }
       }
+    },
+    "c97fe566ef74": {
+      "name": "worktree.ps#1",
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.ps\",\"params\":{\"limit\":10000,\"afterSnapshotId\":null,\"supportsWorktreeVisibilitySourceDefaults\":true}}",
+      "sent": 1
     },
     "f97b6b46b1d5": {
       "name": "worktree.ps#1",
@@ -139,7 +155,7 @@
         "id": "catalog-pending",
         "observation": {
           "sender": ["f97b6b46b1d5"],
-          "payloads": ["a87f1f91dc98"],
+          "payloads": ["c97fe566ef74"],
           "settlements": {
             "fetch": "9270aeb7d9c6"
           },
@@ -151,12 +167,12 @@
         "id": "settled",
         "observation": {
           "sender": ["227f9e3de4fa"],
-          "payloads": ["a87f1f91dc98"],
+          "payloads": ["c97fe566ef74"],
           "settlements": {
-            "fetch": "9270aeb7d9c6"
+            "fetch": "9948855e8b8d"
           },
           "state": "ab1a9ba6301c",
-          "effects": ["2d40d1d38104"]
+          "effects": []
         }
       }
     ]

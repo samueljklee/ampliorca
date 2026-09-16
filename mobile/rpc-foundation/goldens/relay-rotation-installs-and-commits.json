@@ -3,9 +3,9 @@
   "family": "relay.credential-rotation",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "651e75383caf1b30c329dec2d5d4f0da5358c410402d03cbb087f39600d7a4d2",
   "scenarioSha256": "c786fb19f9593ee60238e42813561edf6f5e976fcf217dff8de977a333fe8451",
   "platform": "darwin",
@@ -13,10 +13,6 @@
   "projectionVersion": 2,
   "goldenFormatVersion": 5,
   "values": {
-    "0acd5ee5dc7c": {
-      "name": "pairing.getEndpoints#2",
-      "json": "{\"id\":\"frame-3\",\"deviceToken\":\"recording-device\",\"method\":\"pairing.getEndpoints\",\"params\":{\"installReqId\":\"rotate-VftjjHf-4Lb1-Sdfryl-LA\"}}"
-    },
     "0f448fcd9d34": {
       "name": "pairing.getEndpoints#2",
       "args": [
@@ -70,24 +66,6 @@
         }
       }
     },
-    "4877d080e309": {
-      "name": "pairing.getEndpoints#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"pairing.getEndpoints\",\"params\":{\"installReqId\":\"rotate-VftjjHf-4Lb1-Sdfryl-LA\"}}"
-    },
-    "675a60981a5e": {
-      "name": "pairing.provisionRelay#1",
-      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"pairing.provisionRelay\",\"params\":{\"reqId\":\"rotate-VftjjHf-4Lb1-Sdfryl-LA\",\"newResumeTokenHash\":\"yrnYzw4B0YZ_R6Tcm4arO3oysaG7lsPjvyp4uWmdBtU\",\"expectedCurrentHash\":\"r_9byaBlTZTXS3aLLlWTKwss-nmx4vGRrjKskxWyP30\"}}"
-    },
-    "6fc6c751d8be": {
-      "name": "bundle-written",
-      "value": {
-        "grace": {
-          "$rpc": "null"
-        },
-        "pending": true,
-        "version": 3
-      }
-    },
     "8336e309abb8": {
       "name": "pairing.getEndpoints#1",
       "args": [
@@ -134,6 +112,22 @@
         }
       }
     },
+    "85b38f117802": {
+      "name": "bundle-written",
+      "value": {
+        "grace": {
+          "$rpc": "null"
+        },
+        "pending": true,
+        "version": 3
+      },
+      "sent": 0
+    },
+    "923a7c4f532d": {
+      "name": "pairing.provisionRelay#1",
+      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"pairing.provisionRelay\",\"params\":{\"reqId\":\"rotate-VftjjHf-4Lb1-Sdfryl-LA\",\"newResumeTokenHash\":\"yrnYzw4B0YZ_R6Tcm4arO3oysaG7lsPjvyp4uWmdBtU\",\"expectedCurrentHash\":\"r_9byaBlTZTXS3aLLlWTKwss-nmx4vGRrjKskxWyP30\"}}",
+      "sent": 2
+    },
     "9ade8126917f": {
       "name": "pairing.provisionRelay#1",
       "args": [
@@ -173,7 +167,17 @@
         }
       }
     },
-    "bcef5f2116bb": {
+    "a69b88101d55": {
+      "name": "pairing.getEndpoints#1",
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"pairing.getEndpoints\",\"params\":{\"installReqId\":\"rotate-VftjjHf-4Lb1-Sdfryl-LA\"}}",
+      "sent": 1
+    },
+    "b16bdfbd5633": {
+      "name": "pairing.getEndpoints#2",
+      "json": "{\"id\":\"frame-3\",\"deviceToken\":\"recording-device\",\"method\":\"pairing.getEndpoints\",\"params\":{\"installReqId\":\"rotate-VftjjHf-4Lb1-Sdfryl-LA\"}}",
+      "sent": 3
+    },
+    "eee85d194a6b": {
       "name": "bundle-written",
       "value": {
         "grace": {
@@ -181,7 +185,8 @@
         },
         "pending": false,
         "version": 4
-      }
+      },
+      "sent": 3
     },
     "f2c843a9b548": {
       "status": "fulfilled",
@@ -231,12 +236,12 @@
         "id": "credential-rotated",
         "observation": {
           "sender": ["8336e309abb8", "9ade8126917f", "0f448fcd9d34"],
-          "payloads": ["4877d080e309", "675a60981a5e", "0acd5ee5dc7c"],
+          "payloads": ["a69b88101d55", "923a7c4f532d", "b16bdfbd5633"],
           "settlements": {
             "rotate": "f2c843a9b548"
           },
           "state": "fdf764b375ae",
-          "effects": ["6fc6c751d8be", "bcef5f2116bb"]
+          "effects": ["85b38f117802", "eee85d194a6b"]
         }
       }
     ]

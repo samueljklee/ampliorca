@@ -3,10 +3,10 @@
   "family": "worktree.home-catalog",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
-  "adapterSha256": "6119d409e1958877e4a04b3901f94a3609ac0420f5ca02af20eb8dae5cbf3408",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
+  "adapterSha256": "4e942ddfbaa0ba6bfc2993969276987f6528ac53765d125e99a830e261f93a8e",
   "scenarioSha256": "4749bb3b871275ba08f026f9b6bcfd383605f443e7bba70a7f89175b91db6fa5",
   "platform": "darwin",
   "scenarioVersion": 1,
@@ -74,11 +74,7 @@
       }
     },
     "44136fa355b3": {},
-    "4912be5d956f": {
-      "name": "worktree.ps#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.ps\",\"params\":{\"limit\":10000,\"supportsWorktreeVisibilitySourceDefaults\":true}}"
-    },
-    "8944b50988b9": {
+    "86091b4d2b73": {
       "name": "info",
       "value": {
         "host-1": {
@@ -93,7 +89,8 @@
           },
           "totalWorktrees": 2
         }
-      }
+      },
+      "sent": 1
     },
     "9270aeb7d9c6": {
       "status": "pending",
@@ -124,6 +121,11 @@
         "startedAt": 0
       }
     },
+    "c72cb878ff2a": {
+      "name": "worktree.ps#1",
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.ps\",\"params\":{\"limit\":10000,\"supportsWorktreeVisibilitySourceDefaults\":true}}",
+      "sent": 1
+    },
     "eb79a9b3682a": {
       "status": "fulfilled",
       "startedAt": 0,
@@ -140,7 +142,7 @@
         "id": "catalog-pending",
         "observation": {
           "sender": ["bc1a8e138f82"],
-          "payloads": ["4912be5d956f"],
+          "payloads": ["c72cb878ff2a"],
           "settlements": {
             "load": "9270aeb7d9c6"
           },
@@ -152,12 +154,12 @@
         "id": "settled",
         "observation": {
           "sender": ["2e82f8bbb1f1"],
-          "payloads": ["4912be5d956f"],
+          "payloads": ["c72cb878ff2a"],
           "settlements": {
             "load": "eb79a9b3682a"
           },
           "state": "39b7354b00f4",
-          "effects": ["8944b50988b9"]
+          "effects": ["86091b4d2b73"]
         }
       }
     ]

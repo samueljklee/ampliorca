@@ -3,9 +3,9 @@
   "family": "settings.workspace-submit",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "411f2288f09b7940ceb46304c7fc3325e248bf009ff3a7cc12839d521cfad599",
   "scenarioSha256": "373ea3743dac4e0845df01d5c8f75c909563b8c517f3858293a478234dc9ca5c",
   "platform": "darwin",
@@ -52,25 +52,32 @@
         "disabledTuiAgents": ["claude"]
       }
     },
-    "3405a06dce84": {
-      "name": "error",
-      "value": "Selected agent is disabled. Choose an enabled agent before creating."
+    "3af6dc91992c": {
+      "name": "agentOverridden",
+      "value": false,
+      "sent": 1
     },
-    "7ddcb1852b39": {
+    "4c38e416e041": {
+      "name": "selectedAgent",
+      "value": {
+        "id": "codex",
+        "label": "Codex"
+      },
+      "sent": 1
+    },
+    "5c52bc3f9e55": {
       "name": "settings.get#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"settings.get\"}"
-    },
-    "82cd71d524c8": {
-      "name": "error",
-      "value": ""
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"settings.get\"}",
+      "sent": 1
     },
     "9270aeb7d9c6": {
       "status": "pending",
       "startedAt": 0
     },
-    "ae291b5dba88": {
-      "name": "agentOverridden",
-      "value": false
+    "9e263f5e91be": {
+      "name": "error",
+      "value": "",
+      "sent": 0
     },
     "d6140b218abd": {
       "name": "settings.get#1",
@@ -106,12 +113,10 @@
         }
       }
     },
-    "eb6f7a9c5bf1": {
-      "name": "selectedAgent",
-      "value": {
-        "id": "codex",
-        "label": "Codex"
-      }
+    "eaf6fe088c19": {
+      "name": "error",
+      "value": "Selected agent is disabled. Choose an enabled agent before creating.",
+      "sent": 1
     },
     "eb79a9b3682a": {
       "status": "fulfilled",
@@ -129,26 +134,26 @@
         "id": "settings-pending",
         "observation": {
           "sender": ["090c88478661"],
-          "payloads": ["7ddcb1852b39"],
+          "payloads": ["5c52bc3f9e55"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "submit": "9270aeb7d9c6"
           },
           "state": "13c996e4ec2b",
-          "effects": ["82cd71d524c8"]
+          "effects": ["9e263f5e91be"]
         }
       },
       {
         "id": "settled",
         "observation": {
           "sender": ["d6140b218abd"],
-          "payloads": ["7ddcb1852b39"],
+          "payloads": ["5c52bc3f9e55"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "submit": "eb79a9b3682a"
           },
           "state": "2e8e352c8dd1",
-          "effects": ["82cd71d524c8", "eb6f7a9c5bf1", "ae291b5dba88", "3405a06dce84"]
+          "effects": ["9e263f5e91be", "4c38e416e041", "3af6dc91992c", "eaf6fe088c19"]
         }
       }
     ]

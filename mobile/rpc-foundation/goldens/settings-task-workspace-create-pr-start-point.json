@@ -3,9 +3,9 @@
   "family": "settings.task-workspace-create",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "411f2288f09b7940ceb46304c7fc3325e248bf009ff3a7cc12839d521cfad599",
   "scenarioSha256": "8ae9e1dbb32d404eac9e01f71dacf1c37497030220a8e988c0093bb7ed2d159b",
   "platform": "darwin",
@@ -13,12 +13,12 @@
   "projectionVersion": 2,
   "goldenFormatVersion": 5,
   "values": {
-    "067cef118d9f": {
-      "name": "runtimeTaskSettings",
+    "0289e08fa363": {
+      "name": "workspaceCreateDraft",
       "value": {
-        "defaultTuiAgent": "codex",
-        "disabledTuiAgents": []
-      }
+        "$rpc": "null"
+      },
+      "sent": 3
     },
     "090c88478661": {
       "name": "settings.get#1",
@@ -45,11 +45,10 @@
         "startedAt": 0
       }
     },
-    "180125f5d1a6": {
-      "name": "workspaceCreateDraft",
-      "value": {
-        "$rpc": "null"
-      }
+    "1fbad6cd3477": {
+      "name": "worktree.create#1",
+      "json": "{\"id\":\"frame-3\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.create\",\"params\":{\"repo\":\"id:repo-1\",\"name\":\"pr-7\",\"displayName\":\"Recorded pull request\",\"displayNameKind\":\"generated\",\"setupDecision\":\"inherit\",\"activate\":true,\"startupDraft\":\"https://github.com/o/r/pull/7\",\"createdWithAgent\":\"claude\",\"baseBranch\":\"main\",\"linkedPR\":7}}",
+      "sent": 3
     },
     "2473f12c7cdd": {
       "name": "settings.get#1",
@@ -112,23 +111,40 @@
         "disabledTuiAgents": ["claude"]
       }
     },
-    "6eb4e79ad99a": {
+    "5c52bc3f9e55": {
+      "name": "settings.get#1",
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"settings.get\"}",
+      "sent": 1
+    },
+    "759bb7d4b5cf": {
       "name": "setupPrompt",
       "value": {
         "$rpc": "null"
-      }
+      },
+      "sent": 3
     },
-    "7ddcb1852b39": {
-      "name": "settings.get#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"settings.get\"}"
-    },
-    "82cd71d524c8": {
-      "name": "error",
-      "value": ""
+    "8f08c9b94011": {
+      "name": "actionItem",
+      "value": {
+        "$rpc": "null"
+      },
+      "sent": 3
     },
     "9270aeb7d9c6": {
       "status": "pending",
       "startedAt": 0
+    },
+    "96be595b4b0e": {
+      "name": "creatingKey",
+      "value": {
+        "$rpc": "null"
+      },
+      "sent": 3
+    },
+    "9e263f5e91be": {
+      "name": "error",
+      "value": "",
+      "sent": 0
     },
     "9e9f36142bbd": {
       "name": "worktree.create#1",
@@ -209,25 +225,23 @@
         "startedAt": 0
       }
     },
-    "ac9996319e05": {
-      "name": "actionItem",
+    "a4bcccf87769": {
+      "name": "worktree.resolvePrBase#1",
+      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.resolvePrBase\",\"params\":{\"repo\":\"id:repo-1\",\"prNumber\":7}}",
+      "sent": 2
+    },
+    "d78d24fff8fb": {
+      "name": "runtimeTaskSettings",
       "value": {
-        "$rpc": "null"
-      }
+        "defaultTuiAgent": "codex",
+        "disabledTuiAgents": []
+      },
+      "sent": 1
     },
-    "b66f6d1958b9": {
-      "name": "worktree.create#1",
-      "json": "{\"id\":\"frame-3\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.create\",\"params\":{\"repo\":\"id:repo-1\",\"name\":\"pr-7\",\"displayName\":\"Recorded pull request\",\"displayNameKind\":\"generated\",\"setupDecision\":\"inherit\",\"activate\":true,\"startupDraft\":\"https://github.com/o/r/pull/7\",\"createdWithAgent\":\"claude\",\"baseBranch\":\"main\",\"linkedPR\":7}}"
-    },
-    "be0ebed89b2b": {
-      "name": "navigation",
-      "value": "/h/host-1/session/wt-2?name=Recorded+pull+request&created=1&warning=shallow+clone"
-    },
-    "c9cb32059b8d": {
+    "e00e0d995284": {
       "name": "creatingKey",
-      "value": {
-        "$rpc": "null"
-      }
+      "value": "github:7",
+      "sent": 0
     },
     "eb79a9b3682a": {
       "status": "fulfilled",
@@ -237,13 +251,10 @@
         "$rpc": "undefined"
       }
     },
-    "ecc2acd4d70d": {
-      "name": "worktree.resolvePrBase#1",
-      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.resolvePrBase\",\"params\":{\"repo\":\"id:repo-1\",\"prNumber\":7}}"
-    },
-    "ecefc28694cb": {
-      "name": "creatingKey",
-      "value": "github:7"
+    "f2ca7e4f0a73": {
+      "name": "navigation",
+      "value": "/h/host-1/session/wt-2?name=Recorded+pull+request&created=1&warning=shallow+clone",
+      "sent": 3
     },
     "f9e183f427ee": {
       "name": "worktree.resolvePrBase#1",
@@ -287,47 +298,47 @@
         "id": "settings-pending",
         "observation": {
           "sender": ["090c88478661"],
-          "payloads": ["7ddcb1852b39"],
+          "payloads": ["5c52bc3f9e55"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "submit": "9270aeb7d9c6"
           },
           "state": "52051fd3214e",
-          "effects": ["ecefc28694cb", "82cd71d524c8"]
+          "effects": ["e00e0d995284", "9e263f5e91be"]
         }
       },
       {
         "id": "pr-base-resolved",
         "observation": {
           "sender": ["2473f12c7cdd", "f9e183f427ee", "a49b109c46d4"],
-          "payloads": ["7ddcb1852b39", "ecc2acd4d70d", "b66f6d1958b9"],
+          "payloads": ["5c52bc3f9e55", "a4bcccf87769", "1fbad6cd3477"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "submit": "9270aeb7d9c6"
           },
           "state": "3dc266b1bda1",
-          "effects": ["ecefc28694cb", "82cd71d524c8", "067cef118d9f"]
+          "effects": ["e00e0d995284", "9e263f5e91be", "d78d24fff8fb"]
         }
       },
       {
         "id": "created-from-pr-base",
         "observation": {
           "sender": ["2473f12c7cdd", "f9e183f427ee", "9e9f36142bbd"],
-          "payloads": ["7ddcb1852b39", "ecc2acd4d70d", "b66f6d1958b9"],
+          "payloads": ["5c52bc3f9e55", "a4bcccf87769", "1fbad6cd3477"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "submit": "eb79a9b3682a"
           },
           "state": "33e3b949d4c5",
           "effects": [
-            "ecefc28694cb",
-            "82cd71d524c8",
-            "067cef118d9f",
-            "ac9996319e05",
-            "180125f5d1a6",
-            "6eb4e79ad99a",
-            "be0ebed89b2b",
-            "c9cb32059b8d"
+            "e00e0d995284",
+            "9e263f5e91be",
+            "d78d24fff8fb",
+            "8f08c9b94011",
+            "0289e08fa363",
+            "759bb7d4b5cf",
+            "f2ca7e4f0a73",
+            "96be595b4b0e"
           ]
         }
       }

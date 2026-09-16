@@ -3,9 +3,9 @@
   "family": "git.history-read",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "5e47c7960b9352753f0751d4ccf5e3ff7fb7b74a63cc4e4df3c3ffdcc6c1e66b",
   "scenarioSha256": "83f61085a91458bad529905ecc6fe240c598cddfe44a56dd497b8aed9fb8a7e5",
   "platform": "darwin",
@@ -137,13 +137,14 @@
         }
       ]
     },
+    "7e2ddc2aee54": {
+      "name": "git.history#1",
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"git.history\",\"params\":{\"worktree\":\"id:repo42::/p\",\"limit\":50}}",
+      "sent": 1
+    },
     "9270aeb7d9c6": {
       "status": "pending",
       "startedAt": 0
-    },
-    "d2ac5468a6f5": {
-      "name": "git.history#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"git.history\",\"params\":{\"worktree\":\"id:repo42::/p\",\"limit\":50}}"
     },
     "ef169a494b41": {
       "rows": "unloaded"
@@ -156,7 +157,7 @@
         "id": "pending",
         "observation": {
           "sender": ["17bc1e177fe1"],
-          "payloads": ["d2ac5468a6f5"],
+          "payloads": ["7e2ddc2aee54"],
           "settlements": {
             "load": "9270aeb7d9c6"
           },
@@ -168,7 +169,7 @@
         "id": "settled",
         "observation": {
           "sender": ["6b280ce22422"],
-          "payloads": ["d2ac5468a6f5"],
+          "payloads": ["7e2ddc2aee54"],
           "settlements": {
             "load": "7d520ecb92ad"
           },

@@ -3,9 +3,9 @@
   "family": "worktree.create-retry",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "343b97826782820b7aecaddd13a4c8cdbbbca057c83021863d577a677934f3a3",
   "scenarioSha256": "3cda09e4a4ad4092f5f9a48b7c9715a99a51eb3bc4bed00f7054537a9e21cea9",
   "platform": "darwin",
@@ -15,10 +15,6 @@
   "values": {
     "3f946ad0279c": {
       "outcome": "uncreated"
-    },
-    "43a221c63628": {
-      "name": "worktree.create#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.create\",\"params\":{\"repo\":\"id:repo-1\",\"name\":\"kestrel\",\"clientMutationId\":\"mutation-1\"}}"
     },
     "4b9d2713abf2": {
       "status": "rejected",
@@ -62,6 +58,11 @@
           "isRpcDeliveryUnknown": true
         }
       }
+    },
+    "de75bbf6c762": {
+      "name": "worktree.create#1",
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.create\",\"params\":{\"repo\":\"id:repo-1\",\"name\":\"kestrel\",\"clientMutationId\":\"mutation-1\"}}",
+      "sent": 1
     }
   },
   "recording": {
@@ -71,7 +72,7 @@
         "id": "unknown-not-failed",
         "observation": {
           "sender": ["50eee544463d"],
-          "payloads": ["43a221c63628"],
+          "payloads": ["de75bbf6c762"],
           "settlements": {
             "create": "4b9d2713abf2"
           },

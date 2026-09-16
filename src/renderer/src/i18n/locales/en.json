@@ -106,6 +106,12 @@
     },
     "remote": {
       "findUnavailable": "Find in page is not available while this page streams from the remote host."
+    },
+    "userAgentMigration": {
+      "degradedDescription": "An old browser identity choice could not be inspected. Choose Cleaned or Native in Browser settings; changes take effect after a restart.",
+      "description": "Per-profile user-agent settings were removed. Choose Cleaned or Native in Browser settings; changes take effect after a restart.",
+      "title": "Browser identity is now app-wide",
+      "openSettings": "Open Settings"
     }
   },
   "editor": {
@@ -182,6 +188,20 @@
       "remoteBrowsing": {
         "heading": "Remote browsing",
         "headingDescription": "Where remote workspace pages render, and where their network traffic leaves from."
+      },
+      "userAgent": {
+        "title": "Browser identity",
+        "description": "Choose the user agent for every browser profile and page. Native mode disables Google sign-in. Changes take effect after a restart.",
+        "remoteUnsupported": "Manage browser identity on the remote host with the Orca CLI.",
+        "loading": "Loading…",
+        "resetRequired": "Identity data must be reset explicitly before it can be changed.",
+        "resetRequiredCommand": "Reset it from the command line: orca browser identity set --mode <mode> --reset",
+        "optionClean": "Cleaned",
+        "optionCleanTooltip": "Removes Orca and Electron tokens to match imported Chrome sessions.",
+        "optionNative": "Native",
+        "optionNativeTooltip": "Keeps Electron's built-in identity for sites that reject the cleaned identity. Google sign-in is unavailable in Native mode.",
+        "restartRequired": "Restart required",
+        "unavailable": "Browser identity is unavailable."
       }
     }
   },
@@ -828,7 +848,7 @@
           "flow": {
             "structured": {
               "launch": {
-                "unknown": "Could not confirm whether Codex chat opened. Retry to check again."
+                "unknown": "Could not confirm whether {{value0}} chat opened. Retry to check again."
               }
             }
           }
@@ -9255,6 +9275,13 @@
               "tunnel": "tunnel",
               "routing": "routing",
               "network": "network"
+            },
+            "userAgent": {
+              "identity": "identity",
+              "userAgent": "user agent",
+              "native": "native",
+              "cleaned": "cleaned",
+              "restart": "restart"
             }
           },
           "use": {
@@ -11519,7 +11546,8 @@
           "noteKeysBody": "API keys and workspaces are stored for the active runtime.",
           "noteVisibilityTitle": "Hiding ≠ disconnect",
           "noteVisibilityBody": "Hiding Linear in Task Sources only removes it from the picker. It does not remove your key or skill.",
-          "setupChecking": "Checking…"
+          "setupChecking": "Checking…",
+          "setupUnverified": "Cannot verify"
         },
         "TaskSourceLinearSetup": {
           "connectTitle": "Connect Linear",
@@ -11545,7 +11573,8 @@
           "statusHidden": "Hidden from Tasks",
           "statusIncomplete": "Needs setup",
           "collapseSetup": "Collapse {{provider}} setup steps",
-          "expandSetup": "Show {{provider}} setup steps"
+          "expandSetup": "Show {{provider}} setup steps",
+          "statusUnverified": "Cannot verify"
         },
         "TaskSourceShowInTasksStep": {
           "shown": "Shown",
@@ -13377,6 +13406,12 @@
             "90cabf6cfc": "Stack this PR above #{{value0}}",
             "ff81473a57": "Creates a GitHub Stack or extends the parent's existing stack.",
             "29732f2fb0": "new PR"
+          },
+          "AiVaultSearchEvidence": {
+            "sourceUnverifiable": "Transcript availability could not be verified",
+            "sourceMissing": "Transcript is no longer available",
+            "metadataMatch": "Match in session metadata",
+            "sourceActionsUnavailable": "The transcript source is unavailable."
           }
         }
       },
@@ -16906,6 +16941,11 @@
             "1f772bb5d0": "Message delivery is unconfirmed.",
             "93ef441197": "Message was not sent.",
             "a5e7f14068": "Retry"
+          },
+          "NativeChatLaunchRetry": {
+            "failed": "Chat could not be started.",
+            "unknown": "Chat connection could not be confirmed.",
+            "retry": "Retry"
           }
         }
       },
@@ -17270,6 +17310,11 @@
         "skip": "Skip",
         "sending": "Sending…"
       },
+      "ask": {
+        "awaiting": "Awaiting user input:",
+        "asked": "Asked:",
+        "questionCount": "{{value0}} questions"
+      },
       "approval": {
         "title": "Allow {{value0}}?",
         "allow": "Allow",
@@ -17279,7 +17324,6 @@
       "launchPromptNotDelivered": "Not delivered — check the terminal",
       "structuredSessionCloseFailed": "Could not close this chat session",
       "structuredSessionLaunchFailed": "Could not open {{value0}} chat",
-      "structuredSessionLaunchPending": "Starting {{value0}} chat…",
       "structuredSessionCloseFailedDescription": "The terminal stayed open so the provider remains recoverable.",
       "handoff": {
         "stage": {
@@ -17313,8 +17357,6 @@
         "retry": "Retry",
         "details": "Details"
       },
-      "structuredSessionFellBackToTerminal": "Structured chat isn't available",
-      "structuredSessionFellBackToTerminalDescription": "Orca tried to open a {{value0}} terminal instead.",
       "structuredSessionLaunchFailedDescription": "Orca could not open a structured {{value0}} chat. See the logs for details.",
       "subagents": {
         "state": {
@@ -17668,78 +17710,6 @@
     }
   },
   "dashboardPopout": {
-    "view": {
-      "label": "Dashboard view",
-      "board": "Dashboard",
-      "map": "Agent Map"
-    },
-    "map": {
-      "host": {
-        "local": "Local",
-        "ssh": "SSH",
-        "wsl": "WSL",
-        "remote": "Remote"
-      },
-      "filters": {
-        "showStates": "Agent states",
-        "agentlessWorkspaces": "Workspaces without agents",
-        "orchestrationLinks": "Orchestration links",
-        "orchestrationLinksHidden": "Orchestration links hidden",
-        "workspaceVisibility": "Map content",
-        "title": "Map controls",
-        "reset": "Reset",
-        "ofTotalAgents": "of {{total}} agents shown",
-        "quickViews": "Quick views",
-        "agents": "Agents",
-        "time": "Time",
-        "lifespan": "Session lifespan",
-        "sinceMessage": "Since last message",
-        "timeInState": "Time in current state",
-        "timeMinimum": "{{label}} minimum",
-        "timeMaximum": "{{label}} maximum",
-        "timeAny": "any",
-        "timeRangeCount": "{{count}} ranges",
-        "resetRanges": "Reset ranges",
-        "summaryAll": "All",
-        "summaryCount": "{{shown}} of {{total}}",
-        "summarySelected": "{{count}} selected",
-        "workspace": "Workspace",
-        "stateChip": "State: {{states}}"
-      },
-      "liveContainmentMap": "Live containment map",
-      "empty": "No agents match the current filters.",
-      "canvasLabel": "Nested project, workspace, and agent map",
-      "zoomOut": "Zoom out",
-      "zoomIn": "Zoom in",
-      "fit": "Fit",
-      "openWorktree": "Open {{worktree}} worktree details",
-      "openFolderWorkspace": "Open {{workspace}} folder workspace details",
-      "worktreeSummary": "{{total}} agents · {{active}} active · {{done}} done",
-      "worktreeSummary_one": "{{total}} agent · {{active}} active · {{done}} done",
-      "worktreeSummary_other": "{{total}} agents · {{active}} active · {{done}} done",
-      "runningAgents": "Agents",
-      "spawnAgent": "Start a new agent",
-      "noLaunchableAgents": "No enabled agents detected.",
-      "sleepWorkspace": "Sleep",
-      "projectCount": "{{agents}} agents · {{workspaces}} workspaces",
-      "agentCount": "{{count}} agents",
-      "agentCount_one": "{{count}} agent",
-      "agentCount_other": "{{count}} agents",
-      "noWorkspaceAgents": "No agents in this workspace.",
-      "status": {
-        "doneSeen": "Done, seen"
-      },
-      "quickView": {
-        "everything": "Everything",
-        "attention": "Needs me",
-        "stuck": "Stuck",
-        "unread": "Unread",
-        "recent": "Last 30 min",
-        "longRunning": "Long runners",
-        "stale": "Stale > 3d",
-        "orchestration": "Orchestration"
-      }
-    },
     "placeholder": {
       "title": "Agent dashboard",
       "description": "This is where all your agents will show up at a glance. The board is coming soon."
@@ -17802,8 +17772,7 @@
       "project": "Project",
       "workspaceStatus": "Workspace status",
       "reviewStatus": "PR / MR status",
-      "clearAll": "Clear all filters",
-      "removeChip": "Remove {{filter}}"
+      "clearAll": "Clear all filters"
     },
     "search": {
       "placeholder": "Search worktree, project, or agent…",
@@ -17907,6 +17876,71 @@
       "working": "working",
       "stopped": "stopped",
       "finished": "finished"
+    }
+  },
+  "sessionSearch": {
+    "panel": {
+      "rankedResults": "Best matches",
+      "noMatches": "No matching sessions in the indexed history. Try another query or scope.",
+      "loadMore": "Load more matches",
+      "indexedHistory": "Indexed history · best matches",
+      "hostsSkipped": "Not searched: {{value0}}",
+      "consent": "Enable full-text search? Orca builds an index on this computer from local agent transcripts, including full conversations and up to 3,072 characters per tool output. Content is not redacted. Authenticated paired clients can search it.",
+      "remoteDisabled": "Search is disabled on this computer. Enable transcript indexing on that computer to search its sessions.",
+      "notReady": "The search index is not ready yet. Try again shortly.",
+      "noService": "Search is unavailable on this computer. It may need an Orca update or a runtime with search support.",
+      "failed": "Could not search this computer. Check its connection and try again.",
+      "changed": "The index changed while searching. Search again for current results.",
+      "truncated": "Some results or matching text were limited. Narrow your search for more precise results.",
+      "enableFailed": "Could not enable search. Try again.",
+      "enable": "Enable",
+      "notNow": "Not now",
+      "retry": "Try again"
+    }
+  },
+  "sessionHistory": {
+    "status": {
+      "checking": "Checking…",
+      "error": "Could not check status. Retrying…",
+      "unavailable": "Search is not available on this computer right now.",
+      "unreadable": "{{failed}} sessions could not be read and will be retried.",
+      "roots": "{{roots}} session folders could not be checked.",
+      "searchable": "{{sessions}} sessions · {{messages}} messages searchable",
+      "searchableSessions": "{{sessions}} sessions searchable",
+      "catchingUp": "{{indexed}} of {{total}} sessions · {{messages}} messages searchable",
+      "catchingUpSessions": "{{indexed}} of {{total}} sessions searchable"
+    },
+    "settings": {
+      "saveError": "Could not save. Try again.",
+      "advanced": "Advanced",
+      "deleteIndexCopy": "Clear search data",
+      "deleteTitle": "Clear search data on this computer?",
+      "deleteEnabled": "Turns off search and removes the searchable copy from this computer. Your agent sessions are not affected.",
+      "deleteDisabled": "Removes the searchable copy from this computer. Your agent sessions are not affected.",
+      "delete": "Clear",
+      "cleared": "Search data cleared.",
+      "clearError": "Could not clear search data. Try again.",
+      "webUnsupported": "Turn on session search from the Orca desktop app on that computer.",
+      "title": "Agent Session Search",
+      "description": "Search everything your agents have said and done, on this computer and on any paired Orca server.",
+      "searchDescription": "Turn on session search for this computer and paired servers, or clear search data.",
+      "indexComputers": "Search inside sessions",
+      "computersConsent": "Each computer keeps a searchable copy of its own agent conversations and tool output. Nothing leaves that computer.",
+      "serverVersion": "Orca v{{version}}",
+      "rowSwitchLabel": "Search sessions on {{host}}",
+      "serverOffline": "Offline",
+      "serverTooOld": "Needs a newer version of Orca.",
+      "updateServer": "Update server",
+      "serverToggleError": "Could not change session search on {{host}}. Try again.",
+      "clearedAndTurnedOff": "Search turned off and search data cleared.",
+      "thisComputer": "This computer",
+      "remoteServers": "Orca remote servers",
+      "showMore": "Show {{count}} more",
+      "showFewer": "Show fewer",
+      "openInSidebar": "Open in the sidebar",
+      "openInSidebarCopy": "Type what you remember, or ask an agent: “find the session where we fixed the login timeout.”",
+      "open": "Open",
+      "enableOnAll": "Enable on all computers"
     }
   },
   "aiVault": {

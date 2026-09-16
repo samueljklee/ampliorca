@@ -1,5 +1,6 @@
 import { recordUnhandledRejections } from './unhandled-recording'
 import {
+  captureError,
   captureValue,
   observeSettlement,
   rejectedSettlement,
@@ -22,11 +23,14 @@ export async function runRecording(
 ): Promise<Recording> {
   scheduler.start()
   const transport = new ScriptedRpcTransport(scheduler.elapsed)
-  const effects: { name: string; value: RecordedValue }[] = []
+  const effects: { name: string; value: RecordedValue; sent: number }[] = []
   const settlements: Record<string, Settlement> = {}
   const recording: Recording = { scenario: scenario.id, checkpoints: [] }
   const effect = (name: string, value: unknown) => {
-    effects.push({ name, value: captureValue(value) })
+    // Why the send count: sender and effects are two independent lists, so a send reordered ahead of
+    // a device write moves neither of them. Stamping the count at push time orders them against
+    // each other, and that reordering becomes a golden diff.
+    effects.push({ name, value: captureValue(value), sent: transport.requests.length })
   }
   const stopUnhandled = recordUnhandledRejections(effect)
   let mounted: MountedOperation | undefined
@@ -63,6 +67,17 @@ export async function runRecording(
       } else if ('complete' in step) {
         if (!step.optional || transport.outstanding(step.complete)) {
           transport.complete(step.complete, step.params, step.reply, step.reject)
+        }
+      } else if ('frame' in step) {
+        const crash = transport.frame(step.frame, step.params, step.reply)
+        if (crash) {
+          // The listener died on this frame. Recorded rather than raised, the way a screen crash and
+          // a detached rejection are: what a malformed frame does to a subscription is an
+          // observation, and the transport still raises a scenario that stopped matching.
+          effect('stream-listener-crash', {
+            frame: step.frame,
+            error: captureError(crash.error)
+          })
         }
       } else if ('bind' in step) {
         if (!step.optional || transport.outstanding(step.request)) {

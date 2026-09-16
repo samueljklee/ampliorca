@@ -3,9 +3,9 @@
   "family": "settings-best-effort",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "d3b7f33d810e1fa420ac41a628cde9fe4a9e65fd57f89fbca0a40fc7d74951ab",
   "scenarioSha256": "bbcdefe16b07068a81f3c46ae60df01ccb0fbe5a7c1eade3f584f6f0130c23fe",
   "platform": "darwin",
@@ -13,10 +13,6 @@
   "projectionVersion": 2,
   "goldenFormatVersion": 5,
   "values": {
-    "2369258c9999": {
-      "name": "settings.update#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"settings.update\",\"params\":{\"defaultTaskViewPreset\":\"assigned\"}}"
-    },
     "4a8219d725de": {
       "name": "settings.update#1",
       "args": [
@@ -76,9 +72,15 @@
         "startedAt": 0
       }
     },
-    "b2897d5daa49": {
+    "7f8a022ecd59": {
+      "name": "settings.update#1",
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"settings.update\",\"params\":{\"defaultTaskViewPreset\":\"assigned\"}}",
+      "sent": 1
+    },
+    "8bdf90b8099a": {
       "name": "defaultGitHubPreset",
-      "value": "assigned"
+      "value": "assigned",
+      "sent": 0
     },
     "eb79a9b3682a": {
       "status": "fulfilled",
@@ -96,26 +98,26 @@
         "id": "optimistic",
         "observation": {
           "sender": ["74827568abb0"],
-          "payloads": ["2369258c9999"],
+          "payloads": ["7f8a022ecd59"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "write": "eb79a9b3682a"
           },
           "state": "5db909d58c6f",
-          "effects": ["b2897d5daa49"]
+          "effects": ["8bdf90b8099a"]
         }
       },
       {
         "id": "settled",
         "observation": {
           "sender": ["4a8219d725de"],
-          "payloads": ["2369258c9999"],
+          "payloads": ["7f8a022ecd59"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "write": "eb79a9b3682a"
           },
           "state": "5db909d58c6f",
-          "effects": ["b2897d5daa49"]
+          "effects": ["8bdf90b8099a"]
         }
       }
     ]

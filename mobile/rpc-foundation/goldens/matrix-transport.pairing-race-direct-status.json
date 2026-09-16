@@ -3,9 +3,9 @@
   "family": "transport.pairing-race",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "34b382b13fe75e8ef4002325287c95b3c4db62eeaaf3762af7fbaf6f836c2fa1",
   "scenarioSha256": "1d032c86e7cc12efa3d5044339cb990bd258d830119d0e7b61d1b995b4df29a3",
   "platform": "darwin",
@@ -46,10 +46,6 @@
           "ok": false
         }
       }
-    },
-    "1e5b32902af7": {
-      "name": "status.get#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"status.get\"}"
     },
     "2698c9770ad3": {
       "name": "status.get#1",
@@ -186,6 +182,11 @@
           }
         }
       }
+    },
+    "63ab1563ba51": {
+      "name": "status.get#1",
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"status.get\"}",
+      "sent": 2
     },
     "7d3dd7f9381b": {
       "name": "status.get#1",
@@ -357,9 +358,15 @@
     "a7d5becc0aed": {
       "outcome": "relay"
     },
-    "c0c86e67c300": {
+    "b2a8517fe750": {
+      "name": "candidate-closed",
+      "value": "direct",
+      "sent": 2
+    },
+    "b33a14df0df6": {
       "name": "status.get#2",
-      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"status.get\"}"
+      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"status.get\"}",
+      "sent": 2
     },
     "c71b2f8a6993": {
       "name": "status.get#1",
@@ -425,10 +432,6 @@
           "isRpcDeliveryUnknown": true
         }
       }
-    },
-    "f203320e31e9": {
-      "name": "candidate-closed",
-      "value": "direct"
     }
   },
   "recording": {
@@ -438,132 +441,132 @@
         "id": "transport-pairing-race-relay-completes-first.normal:relay-wins-when-it-completes-first",
         "observation": {
           "sender": ["26f802fad080", "36caf183b988"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "race": "416024b9c436"
           },
           "state": "a7d5becc0aed",
-          "effects": ["f203320e31e9"]
+          "effects": ["b2a8517fe750"]
         }
       },
       {
         "id": "transport-pairing-race-relay-completes-first.result-absent:relay-wins-when-it-completes-first",
         "observation": {
           "sender": ["7d3dd7f9381b", "36caf183b988"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "race": "416024b9c436"
           },
           "state": "a7d5becc0aed",
-          "effects": ["f203320e31e9"]
+          "effects": ["b2a8517fe750"]
         }
       },
       {
         "id": "transport-pairing-race-relay-completes-first.result-null:relay-wins-when-it-completes-first",
         "observation": {
           "sender": ["88200d49083c", "36caf183b988"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "race": "416024b9c436"
           },
           "state": "a7d5becc0aed",
-          "effects": ["f203320e31e9"]
+          "effects": ["b2a8517fe750"]
         }
       },
       {
         "id": "transport-pairing-race-relay-completes-first.inner-ok-missing:relay-wins-when-it-completes-first",
         "observation": {
           "sender": ["4451bb95a76e", "36caf183b988"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "race": "416024b9c436"
           },
           "state": "a7d5becc0aed",
-          "effects": ["f203320e31e9"]
+          "effects": ["b2a8517fe750"]
         }
       },
       {
         "id": "transport-pairing-race-relay-completes-first.inner-false-string-error:relay-wins-when-it-completes-first",
         "observation": {
           "sender": ["944bf432f199", "36caf183b988"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "race": "416024b9c436"
           },
           "state": "a7d5becc0aed",
-          "effects": ["f203320e31e9"]
+          "effects": ["b2a8517fe750"]
         }
       },
       {
         "id": "transport-pairing-race-relay-completes-first.inner-false-object-error:relay-wins-when-it-completes-first",
         "observation": {
           "sender": ["89236e432861", "36caf183b988"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "race": "416024b9c436"
           },
           "state": "a7d5becc0aed",
-          "effects": ["f203320e31e9"]
+          "effects": ["b2a8517fe750"]
         }
       },
       {
         "id": "transport-pairing-race-relay-completes-first.outer-refused:relay-wins-when-it-completes-first",
         "observation": {
           "sender": ["16cd464bf664", "36caf183b988"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "race": "416024b9c436"
           },
           "state": "a7d5becc0aed",
-          "effects": ["f203320e31e9"]
+          "effects": ["b2a8517fe750"]
         }
       },
       {
         "id": "transport-pairing-race-relay-completes-first.outer-refused-no-message:relay-wins-when-it-completes-first",
         "observation": {
           "sender": ["9cdf3c107e7b", "36caf183b988"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "race": "416024b9c436"
           },
           "state": "a7d5becc0aed",
-          "effects": ["f203320e31e9"]
+          "effects": ["b2a8517fe750"]
         }
       },
       {
         "id": "transport-pairing-race-relay-completes-first.method-not-found:relay-wins-when-it-completes-first",
         "observation": {
           "sender": ["c71b2f8a6993", "36caf183b988"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "race": "416024b9c436"
           },
           "state": "a7d5becc0aed",
-          "effects": ["f203320e31e9"]
+          "effects": ["b2a8517fe750"]
         }
       },
       {
         "id": "transport-pairing-race-relay-completes-first.transport-rejection:relay-wins-when-it-completes-first",
         "observation": {
           "sender": ["de87f6266897", "36caf183b988"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "race": "416024b9c436"
           },
           "state": "a7d5becc0aed",
-          "effects": ["f203320e31e9"]
+          "effects": ["b2a8517fe750"]
         }
       },
       {
         "id": "transport-pairing-race-relay-completes-first.transport-rejection-no-message:relay-wins-when-it-completes-first",
         "observation": {
           "sender": ["2698c9770ad3", "36caf183b988"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "race": "416024b9c436"
           },
           "state": "a7d5becc0aed",
-          "effects": ["f203320e31e9"]
+          "effects": ["b2a8517fe750"]
         }
       }
     ]

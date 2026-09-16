@@ -3,9 +3,9 @@
   "family": "host.worktree-actions",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "92c29bd78ca0c0d5917e9386fc447bb9a1698b1d1ffaba0db7546eaac60da639",
   "scenarioSha256": "c47656a4ca21762e4b5a247ddf9a96efb746bec81e942ffa308a774bab1449e2",
   "platform": "darwin",
@@ -90,9 +90,27 @@
         }
       ]
     },
-    "0ebfc1859f18": {
-      "name": "pinnedIds",
-      "value": ["wt-1"]
+    "088a989c038b": {
+      "name": "worktrees",
+      "value": [
+        {
+          "branch": "feature/pin",
+          "displayName": "marlin",
+          "hasAttachedPty": false,
+          "isPinned": true,
+          "linkedPR": {
+            "$rpc": "null"
+          },
+          "liveTerminalCount": 0,
+          "path": "/repos/marlin/wt-1",
+          "preview": "",
+          "repo": "marlin",
+          "repoId": "repo-1",
+          "unread": false,
+          "worktreeId": "wt-1"
+        }
+      ],
+      "sent": 0
     },
     "11e971c034ae": {
       "name": "worktree.rm#1",
@@ -200,9 +218,37 @@
         }
       }
     },
-    "4caf7515e224": {
+    "2c2ff4eed497": {
       "name": "worktree.set#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.set\",\"params\":{\"worktree\":\"id:wt-1\",\"isPinned\":true}}"
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.set\",\"params\":{\"worktree\":\"id:wt-1\",\"isPinned\":true}}",
+      "sent": 1
+    },
+    "3e27f9568029": {
+      "name": "lastKnownWorktrees",
+      "value": [
+        {
+          "branch": "feature/pin",
+          "displayName": "marlin",
+          "hasAttachedPty": false,
+          "isPinned": true,
+          "linkedPR": {
+            "$rpc": "null"
+          },
+          "liveTerminalCount": 0,
+          "path": "/repos/marlin/wt-1",
+          "preview": "",
+          "repo": "marlin",
+          "repoId": "repo-1",
+          "unread": false,
+          "worktreeId": "wt-1"
+        }
+      ],
+      "sent": 0
+    },
+    "43444aeb669c": {
+      "name": "worktree.activate#1",
+      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.activate\",\"params\":{\"worktree\":\"id:wt-1\",\"notifyClients\":false,\"navigation\":\"caller\"}}",
+      "sent": 2
     },
     "4f1b109adcc0": {
       "name": "worktree.rm#1",
@@ -273,10 +319,6 @@
         }
       }
     },
-    "5c186d67b84c": {
-      "name": "lastKnownWorktrees",
-      "value": []
-    },
     "60cb8c68db7d": {
       "name": "worktree.rm#1",
       "args": [
@@ -309,18 +351,27 @@
         }
       }
     },
-    "69d698d4f352": {
-      "name": "worktree.rm#1",
-      "json": "{\"id\":\"frame-3\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.rm\",\"params\":{\"worktree\":\"id:wt-1\",\"force\":true}}"
+    "6e959a9dd70e": {
+      "confirmRemoveHost": false,
+      "lastKnownWorktrees": [],
+      "optimisticActiveWorktreeIdentity": "|wt-1",
+      "pinnedIds": ["wt-1"],
+      "routeActionState": {},
+      "worktrees": []
     },
-    "6cfdae6737f2": {
-      "name": "lastKnownWorktrees",
+    "71246d169f18": {
+      "name": "worktrees",
+      "value": [],
+      "sent": 2
+    },
+    "76533c02700f": {
+      "name": "worktrees",
       "value": [
         {
           "branch": "feature/pin",
           "displayName": "marlin",
           "hasAttachedPty": false,
-          "isPinned": true,
+          "isPinned": false,
           "linkedPR": {
             "$rpc": "null"
           },
@@ -332,15 +383,8 @@
           "unread": false,
           "worktreeId": "wt-1"
         }
-      ]
-    },
-    "6e959a9dd70e": {
-      "confirmRemoveHost": false,
-      "lastKnownWorktrees": [],
-      "optimisticActiveWorktreeIdentity": "|wt-1",
-      "pinnedIds": ["wt-1"],
-      "routeActionState": {},
-      "worktrees": []
+      ],
+      "sent": 3
     },
     "7ce7ff16ad9e": {
       "name": "worktree.rm#1",
@@ -411,6 +455,11 @@
           "ok": false
         }
       }
+    },
+    "8839215bd1a5": {
+      "name": "lastKnownWorktrees",
+      "value": [],
+      "sent": 2
     },
     "909c8bc23636": {
       "name": "worktree.rm#1",
@@ -525,8 +574,13 @@
         }
       ]
     },
-    "a7c564546e94": {
-      "name": "worktrees",
+    "a970c9a870bb": {
+      "name": "pinnedIds",
+      "value": ["wt-1"],
+      "sent": 0
+    },
+    "b9380463fe37": {
+      "name": "lastKnownWorktrees",
       "value": [
         {
           "branch": "feature/pin",
@@ -544,11 +598,18 @@
           "unread": false,
           "worktreeId": "wt-1"
         }
-      ]
+      ],
+      "sent": 3
     },
-    "b1509905fc66": {
+    "ba712c70aeb2": {
+      "name": "worktree.rm#1",
+      "json": "{\"id\":\"frame-3\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.rm\",\"params\":{\"worktree\":\"id:wt-1\",\"force\":true}}",
+      "sent": 3
+    },
+    "bb44ad78848e": {
       "name": "optimisticActiveWorktreeIdentity",
-      "value": "|wt-1"
+      "value": "|wt-1",
+      "sent": 1
     },
     "bf2b36bda2d2": {
       "name": "worktree.set#1",
@@ -575,52 +636,6 @@
         "status": "pending",
         "startedAt": 0
       }
-    },
-    "c3eecb0c6e96": {
-      "name": "worktree.activate#1",
-      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"worktree.activate\",\"params\":{\"worktree\":\"id:wt-1\",\"notifyClients\":false,\"navigation\":\"caller\"}}"
-    },
-    "c777b17081dd": {
-      "name": "lastKnownWorktrees",
-      "value": [
-        {
-          "branch": "feature/pin",
-          "displayName": "marlin",
-          "hasAttachedPty": false,
-          "isPinned": false,
-          "linkedPR": {
-            "$rpc": "null"
-          },
-          "liveTerminalCount": 0,
-          "path": "/repos/marlin/wt-1",
-          "preview": "",
-          "repo": "marlin",
-          "repoId": "repo-1",
-          "unread": false,
-          "worktreeId": "wt-1"
-        }
-      ]
-    },
-    "cbf8280fdbe7": {
-      "name": "worktrees",
-      "value": [
-        {
-          "branch": "feature/pin",
-          "displayName": "marlin",
-          "hasAttachedPty": false,
-          "isPinned": true,
-          "linkedPR": {
-            "$rpc": "null"
-          },
-          "liveTerminalCount": 0,
-          "path": "/repos/marlin/wt-1",
-          "preview": "",
-          "repo": "marlin",
-          "repoId": "repo-1",
-          "unread": false,
-          "worktreeId": "wt-1"
-        }
-      ]
     },
     "ce97d2eedacb": {
       "name": "worktree.rm#1",
@@ -685,10 +700,6 @@
           "isRpcDeliveryUnknown": true
         }
       }
-    },
-    "d440bd87d1ce": {
-      "name": "worktrees",
-      "value": []
     },
     "e3e3c397a66a": {
       "name": "worktree.rm#1",
@@ -766,20 +777,20 @@
         "id": "host-worktree-actions-pin-open-delete.prelude:pin-optimistic",
         "observation": {
           "sender": ["bf2b36bda2d2"],
-          "payloads": ["4caf7515e224"],
+          "payloads": ["2c2ff4eed497"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a"
           },
           "state": "9a9b0d6699b2",
-          "effects": ["cbf8280fdbe7", "6cfdae6737f2", "0ebfc1859f18"]
+          "effects": ["088a989c038b", "3e27f9568029", "a970c9a870bb"]
         }
       },
       {
         "id": "host-worktree-actions-pin-open-delete.prelude:delete-optimistic",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "e3e3c397a66a"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -788,12 +799,12 @@
           },
           "state": "6e959a9dd70e",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5"
           ]
         }
       },
@@ -801,7 +812,7 @@
         "id": "host-worktree-actions-pin-open-delete.prelude:cleanup",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "60cb8c68db7d"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -810,14 +821,14 @@
           },
           "state": "6e959a9dd70e",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c",
-            "a7c564546e94",
-            "c777b17081dd"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5",
+            "76533c02700f",
+            "b9380463fe37"
           ]
         }
       },
@@ -825,7 +836,7 @@
         "id": "host-worktree-actions-pin-open-delete.normal:settled",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "2b635c2a4fbb"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -834,12 +845,12 @@
           },
           "state": "6e959a9dd70e",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5"
           ]
         }
       },
@@ -847,7 +858,7 @@
         "id": "host-worktree-actions-pin-open-delete.result-absent:settled",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "972099c06c75"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -856,12 +867,12 @@
           },
           "state": "6e959a9dd70e",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5"
           ]
         }
       },
@@ -869,7 +880,7 @@
         "id": "host-worktree-actions-pin-open-delete.result-null:settled",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "909c8bc23636"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -878,12 +889,12 @@
           },
           "state": "6e959a9dd70e",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5"
           ]
         }
       },
@@ -891,7 +902,7 @@
         "id": "host-worktree-actions-pin-open-delete.inner-ok-missing:settled",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "ff4c661d50a3"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -900,12 +911,12 @@
           },
           "state": "6e959a9dd70e",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5"
           ]
         }
       },
@@ -913,7 +924,7 @@
         "id": "host-worktree-actions-pin-open-delete.inner-false-string-error:settled",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "4f1b109adcc0"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -922,12 +933,12 @@
           },
           "state": "6e959a9dd70e",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5"
           ]
         }
       },
@@ -935,7 +946,7 @@
         "id": "host-worktree-actions-pin-open-delete.inner-false-object-error:settled",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "11e971c034ae"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -944,12 +955,12 @@
           },
           "state": "6e959a9dd70e",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5"
           ]
         }
       },
@@ -957,7 +968,7 @@
         "id": "host-worktree-actions-pin-open-delete.outer-refused:settled",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "7ce7ff16ad9e"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -966,14 +977,14 @@
           },
           "state": "064a538f6c1c",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c",
-            "a7c564546e94",
-            "c777b17081dd"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5",
+            "76533c02700f",
+            "b9380463fe37"
           ]
         }
       },
@@ -981,7 +992,7 @@
         "id": "host-worktree-actions-pin-open-delete.outer-refused-no-message:settled",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "2c0740d2cefb"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -990,14 +1001,14 @@
           },
           "state": "064a538f6c1c",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c",
-            "a7c564546e94",
-            "c777b17081dd"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5",
+            "76533c02700f",
+            "b9380463fe37"
           ]
         }
       },
@@ -1005,7 +1016,7 @@
         "id": "host-worktree-actions-pin-open-delete.method-not-found:settled",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "86754b292acd"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -1014,14 +1025,14 @@
           },
           "state": "064a538f6c1c",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c",
-            "a7c564546e94",
-            "c777b17081dd"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5",
+            "76533c02700f",
+            "b9380463fe37"
           ]
         }
       },
@@ -1029,7 +1040,7 @@
         "id": "host-worktree-actions-pin-open-delete.transport-rejection:settled",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "ce97d2eedacb"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -1038,14 +1049,14 @@
           },
           "state": "064a538f6c1c",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c",
-            "a7c564546e94",
-            "c777b17081dd"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5",
+            "76533c02700f",
+            "b9380463fe37"
           ]
         }
       },
@@ -1053,7 +1064,7 @@
         "id": "host-worktree-actions-pin-open-delete.transport-rejection-no-message:settled",
         "observation": {
           "sender": ["56b6d4fb8c56", "04938673cbf5", "cf69e8a7e125"],
-          "payloads": ["4caf7515e224", "c3eecb0c6e96", "69d698d4f352"],
+          "payloads": ["2c2ff4eed497", "43444aeb669c", "ba712c70aeb2"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "toggle-pin": "eb79a9b3682a",
@@ -1062,14 +1073,14 @@
           },
           "state": "064a538f6c1c",
           "effects": [
-            "cbf8280fdbe7",
-            "6cfdae6737f2",
-            "0ebfc1859f18",
-            "b1509905fc66",
-            "d440bd87d1ce",
-            "5c186d67b84c",
-            "a7c564546e94",
-            "c777b17081dd"
+            "088a989c038b",
+            "3e27f9568029",
+            "a970c9a870bb",
+            "bb44ad78848e",
+            "71246d169f18",
+            "8839215bd1a5",
+            "76533c02700f",
+            "b9380463fe37"
           ]
         }
       }

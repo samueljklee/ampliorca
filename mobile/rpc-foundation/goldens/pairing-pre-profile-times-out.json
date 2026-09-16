@@ -3,9 +3,9 @@
   "family": "pairing.pre-profile",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "e33d584229530c716ecdc44d198b95fcfb4dfd9468fba7d5222ee3f122950197",
   "scenarioSha256": "9ab72231bf97fbe7eed232019c56568a9411433835eae424628af62c7c6a10c1",
   "platform": "darwin",
@@ -13,17 +13,15 @@
   "projectionVersion": 2,
   "goldenFormatVersion": 5,
   "values": {
-    "0193ae4dbb38": {
-      "name": "candidate-closed",
-      "value": "relay"
-    },
-    "0799d165f56e": {
+    "0b595cd54ac3": {
       "name": "journal-saved",
-      "value": "pair-fixture-1"
+      "value": "pair-fixture-1",
+      "sent": 0
     },
-    "1e5b32902af7": {
+    "63ab1563ba51": {
       "name": "status.get#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"status.get\"}"
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"status.get\"}",
+      "sent": 2
     },
     "86d361a0bf7c": {
       "outcome": "unpaired",
@@ -35,6 +33,16 @@
     "9270aeb7d9c6": {
       "status": "pending",
       "startedAt": 0
+    },
+    "b2a8517fe750": {
+      "name": "candidate-closed",
+      "value": "direct",
+      "sent": 2
+    },
+    "b33a14df0df6": {
+      "name": "status.get#2",
+      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"status.get\"}",
+      "sent": 2
     },
     "ba9fd57319d3": {
       "name": "status.get#1",
@@ -61,10 +69,6 @@
         "startedAt": 0
       }
     },
-    "c0c86e67c300": {
-      "name": "status.get#2",
-      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"status.get\"}"
-    },
     "ccefc12fda27": {
       "outcome": "unpaired",
       "savedHost": {
@@ -72,9 +76,10 @@
       },
       "timedOut": true
     },
-    "f203320e31e9": {
+    "d433a326314e": {
       "name": "candidate-closed",
-      "value": "direct"
+      "value": "relay",
+      "sent": 2
     },
     "f6c99f740e75": {
       "name": "status.get#2",
@@ -109,24 +114,24 @@
         "id": "racing",
         "observation": {
           "sender": ["ba9fd57319d3", "f6c99f740e75"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "pair": "9270aeb7d9c6"
           },
           "state": "86d361a0bf7c",
-          "effects": ["0799d165f56e"]
+          "effects": ["0b595cd54ac3"]
         }
       },
       {
         "id": "timed-out",
         "observation": {
           "sender": ["ba9fd57319d3", "f6c99f740e75"],
-          "payloads": ["1e5b32902af7", "c0c86e67c300"],
+          "payloads": ["63ab1563ba51", "b33a14df0df6"],
           "settlements": {
             "pair": "9270aeb7d9c6"
           },
           "state": "ccefc12fda27",
-          "effects": ["0799d165f56e", "f203320e31e9", "0193ae4dbb38"]
+          "effects": ["0b595cd54ac3", "b2a8517fe750", "d433a326314e"]
         }
       }
     ]

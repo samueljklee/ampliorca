@@ -3,9 +3,9 @@
   "family": "host.view-settings",
   "namedDeltas": [],
   "runnerVersion": 1,
-  "baseline": "c6a72169843ececf3a21da370ac50c5c5a4e6462",
+  "baseline": "9e01c50e6dc919de3c0129e755f1ea9ec335dc59",
   "lockfileSha256": "788c1234b38a61fc882fca292341fce6690deee9cc6695673b0575cf2c4cf571",
-  "recorderSha256": "fc1f0b1f8c685b481838dfacd28c8608c6fa7a8a21faa1b81e05950c8d8e65f4",
+  "recorderSha256": "d08bf9cd596ee449531f079c9f4f83efcb03fbc5e8d8658d15e0407d3464ec0e",
   "adapterSha256": "a9e0780298a1443664e7ae02056168aa34d67556c9c056d51a82c7b4a73ad35b",
   "scenarioSha256": "30cbeff90a845ab5dd576e302156e859338357b608e87e9fadeddf18ae93d9ca",
   "platform": "darwin",
@@ -13,6 +13,11 @@
   "projectionVersion": 2,
   "goldenFormatVersion": 5,
   "values": {
+    "045d8ec6a888": {
+      "name": "ui.set#1",
+      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"ui.set\",\"params\":{\"sortBy\":\"name\"}}",
+      "sent": 2
+    },
     "0658e20f47f5": {
       "name": "ui.set#1",
       "args": [
@@ -47,6 +52,11 @@
         }
       }
     },
+    "1207e1b06040": {
+      "name": "workspaceStatuses",
+      "value": [],
+      "sent": 1
+    },
     "25d97d355299": {
       "name": "ui.set#1",
       "args": [
@@ -77,14 +87,6 @@
           "isRpcDeliveryUnknown": true
         }
       }
-    },
-    "292b632037a0": {
-      "name": "ui.set#1",
-      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"ui.set\",\"params\":{\"sortBy\":\"name\"}}"
-    },
-    "3059ce80d86a": {
-      "name": "collapsedGroups",
-      "value": []
     },
     "344b9ddf6cfb": {
       "name": "ui.set#1",
@@ -119,10 +121,6 @@
           }
         }
       }
-    },
-    "34925f64c9a6": {
-      "name": "sortMode",
-      "value": "name"
     },
     "44e91172f4a0": {
       "name": "ui.set#1",
@@ -189,10 +187,6 @@
         }
       }
     },
-    "5907841fc56d": {
-      "name": "ui.get#1",
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"ui.get\"}"
-    },
     "5fbdd64c75bc": {
       "name": "ui.get#1",
       "args": [
@@ -217,6 +211,11 @@
         "status": "pending",
         "startedAt": 0
       }
+    },
+    "6816213c2ede": {
+      "name": "collapsedGroups",
+      "value": [],
+      "sent": 1
     },
     "733b56879f90": {
       "name": "ui.set#1",
@@ -281,22 +280,9 @@
         }
       }
     },
-    "7eaddd04bcdd": {
-      "name": "workspaceStatuses",
-      "value": []
-    },
     "9270aeb7d9c6": {
       "status": "pending",
       "startedAt": 0
-    },
-    "9527461faeb1": {
-      "name": "filters",
-      "value": {
-        "alwaysShowDefaultBranch": true,
-        "filterRepoIds": [],
-        "hideDefaultBranch": false,
-        "hideSleeping": true
-      }
     },
     "a234a06a4465": {
       "name": "ui.set#1",
@@ -368,6 +354,11 @@
         }
       }
     },
+    "a8115697f295": {
+      "name": "sortMode",
+      "value": "name",
+      "sent": 1
+    },
     "ba2035345a68": {
       "collapsed": [],
       "filters": {
@@ -391,6 +382,11 @@
       "groupMode": "none",
       "sortMode": "recent",
       "statuses": []
+    },
+    "c178812d69e7": {
+      "name": "ui.get#1",
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"ui.get\"}",
+      "sent": 1
     },
     "c6e108d0fcc5": {
       "name": "ui.set#1",
@@ -428,6 +424,16 @@
         }
       }
     },
+    "d88f3b1774b1": {
+      "name": "filters",
+      "value": {
+        "alwaysShowDefaultBranch": true,
+        "filterRepoIds": [],
+        "hideDefaultBranch": false,
+        "hideSleeping": true
+      },
+      "sent": 1
+    },
     "d991b0c4e961": {
       "name": "ui.set#1",
       "args": [
@@ -461,9 +467,10 @@
         }
       }
     },
-    "e9a3acf203c6": {
+    "e0a092c9ae88": {
       "name": "groupMode",
-      "value": "repo"
+      "value": "repo",
+      "sent": 1
     },
     "eb79a9b3682a": {
       "status": "fulfilled",
@@ -515,7 +522,7 @@
         "id": "host-view-settings-sync.prelude:ui-pending",
         "observation": {
           "sender": ["5fbdd64c75bc"],
-          "payloads": ["5907841fc56d"],
+          "payloads": ["c178812d69e7"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "sync": "9270aeb7d9c6"
@@ -528,7 +535,7 @@
         "id": "host-view-settings-sync.normal:settled",
         "observation": {
           "sender": ["a424515cabc9", "78f2fbcd0185"],
-          "payloads": ["5907841fc56d", "292b632037a0"],
+          "payloads": ["c178812d69e7", "045d8ec6a888"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "sync": "eb79a9b3682a",
@@ -536,16 +543,16 @@
           },
           "state": "ba2035345a68",
           "effects": [
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1",
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1"
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1",
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1"
           ]
         }
       },
@@ -553,7 +560,7 @@
         "id": "host-view-settings-sync.result-absent:settled",
         "observation": {
           "sender": ["a424515cabc9", "733b56879f90"],
-          "payloads": ["5907841fc56d", "292b632037a0"],
+          "payloads": ["c178812d69e7", "045d8ec6a888"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "sync": "eb79a9b3682a",
@@ -561,16 +568,16 @@
           },
           "state": "ba2035345a68",
           "effects": [
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1",
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1"
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1",
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1"
           ]
         }
       },
@@ -578,7 +585,7 @@
         "id": "host-view-settings-sync.result-null:settled",
         "observation": {
           "sender": ["a424515cabc9", "d991b0c4e961"],
-          "payloads": ["5907841fc56d", "292b632037a0"],
+          "payloads": ["c178812d69e7", "045d8ec6a888"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "sync": "eb79a9b3682a",
@@ -586,16 +593,16 @@
           },
           "state": "ba2035345a68",
           "effects": [
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1",
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1"
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1",
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1"
           ]
         }
       },
@@ -603,7 +610,7 @@
         "id": "host-view-settings-sync.inner-ok-missing:settled",
         "observation": {
           "sender": ["a424515cabc9", "a234a06a4465"],
-          "payloads": ["5907841fc56d", "292b632037a0"],
+          "payloads": ["c178812d69e7", "045d8ec6a888"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "sync": "eb79a9b3682a",
@@ -611,16 +618,16 @@
           },
           "state": "ba2035345a68",
           "effects": [
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1",
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1"
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1",
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1"
           ]
         }
       },
@@ -628,7 +635,7 @@
         "id": "host-view-settings-sync.inner-false-string-error:settled",
         "observation": {
           "sender": ["a424515cabc9", "344b9ddf6cfb"],
-          "payloads": ["5907841fc56d", "292b632037a0"],
+          "payloads": ["c178812d69e7", "045d8ec6a888"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "sync": "eb79a9b3682a",
@@ -636,16 +643,16 @@
           },
           "state": "ba2035345a68",
           "effects": [
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1",
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1"
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1",
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1"
           ]
         }
       },
@@ -653,7 +660,7 @@
         "id": "host-view-settings-sync.inner-false-object-error:settled",
         "observation": {
           "sender": ["a424515cabc9", "c6e108d0fcc5"],
-          "payloads": ["5907841fc56d", "292b632037a0"],
+          "payloads": ["c178812d69e7", "045d8ec6a888"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "sync": "eb79a9b3682a",
@@ -661,16 +668,16 @@
           },
           "state": "ba2035345a68",
           "effects": [
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1",
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1"
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1",
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1"
           ]
         }
       },
@@ -678,7 +685,7 @@
         "id": "host-view-settings-sync.outer-refused:settled",
         "observation": {
           "sender": ["a424515cabc9", "fa3d32a591e8"],
-          "payloads": ["5907841fc56d", "292b632037a0"],
+          "payloads": ["c178812d69e7", "045d8ec6a888"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "sync": "eb79a9b3682a",
@@ -686,16 +693,16 @@
           },
           "state": "ba2035345a68",
           "effects": [
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1",
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1"
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1",
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1"
           ]
         }
       },
@@ -703,7 +710,7 @@
         "id": "host-view-settings-sync.outer-refused-no-message:settled",
         "observation": {
           "sender": ["a424515cabc9", "0658e20f47f5"],
-          "payloads": ["5907841fc56d", "292b632037a0"],
+          "payloads": ["c178812d69e7", "045d8ec6a888"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "sync": "eb79a9b3682a",
@@ -711,16 +718,16 @@
           },
           "state": "ba2035345a68",
           "effects": [
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1",
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1"
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1",
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1"
           ]
         }
       },
@@ -728,7 +735,7 @@
         "id": "host-view-settings-sync.method-not-found:settled",
         "observation": {
           "sender": ["a424515cabc9", "53a6789707e6"],
-          "payloads": ["5907841fc56d", "292b632037a0"],
+          "payloads": ["c178812d69e7", "045d8ec6a888"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "sync": "eb79a9b3682a",
@@ -736,16 +743,16 @@
           },
           "state": "ba2035345a68",
           "effects": [
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1",
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1"
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1",
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1"
           ]
         }
       },
@@ -753,7 +760,7 @@
         "id": "host-view-settings-sync.transport-rejection:settled",
         "observation": {
           "sender": ["a424515cabc9", "44e91172f4a0"],
-          "payloads": ["5907841fc56d", "292b632037a0"],
+          "payloads": ["c178812d69e7", "045d8ec6a888"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "sync": "eb79a9b3682a",
@@ -761,16 +768,16 @@
           },
           "state": "ba2035345a68",
           "effects": [
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1",
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1"
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1",
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1"
           ]
         }
       },
@@ -778,7 +785,7 @@
         "id": "host-view-settings-sync.transport-rejection-no-message:settled",
         "observation": {
           "sender": ["a424515cabc9", "25d97d355299"],
-          "payloads": ["5907841fc56d", "292b632037a0"],
+          "payloads": ["c178812d69e7", "045d8ec6a888"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "sync": "eb79a9b3682a",
@@ -786,16 +793,16 @@
           },
           "state": "ba2035345a68",
           "effects": [
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1",
-            "e9a3acf203c6",
-            "34925f64c9a6",
-            "7eaddd04bcdd",
-            "3059ce80d86a",
-            "9527461faeb1"
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1",
+            "e0a092c9ae88",
+            "a8115697f295",
+            "1207e1b06040",
+            "6816213c2ede",
+            "d88f3b1774b1"
           ]
         }
       }

@@ -4,8 +4,8 @@ import { rpcReadUnchecked, rpcUncheckedPayloadReader } from '../transport/rpc-re
 import { isTerminalSendResultAccepted } from './terminal-send-rpc-response'
 import type { TerminalViewportUpdateOutcome } from './terminal-viewport-refit-state'
 
-// Terminal input and the in-place viewport update. The `subscribe` and `sendUnsubscribe` ports
-// these files also reach are a separate boundary and are untouched.
+// Terminal input, the in-place viewport update and the buffer clear. The `subscribe` and
+// `sendUnsubscribe` ports these files also reach are a separate boundary and are untouched.
 
 /**
  * Whether the runtime took the bytes, which is the whole of what a terminal send means to mobile:
@@ -20,8 +20,12 @@ const terminalSendAcceptanceReader: RpcCompatibleReader<
 > = (raw) => rpcReadUnchecked('terminal-send-accepted', isTerminalSendResultAccepted(raw))
 
 /**
- * Two call sites send terminal input this way — the query-reply responder and the live accessory's
- * raw send — and they agree on acceptance, differing only in the params they build.
+ * Five call sites send terminal input this way and all agree on acceptance, differing only in the
+ * params they build: the query-reply responder (`mobile-terminal-query-reply.ts`), the live
+ * accessory's raw send (`terminal-live-accessory-raw-send.ts`), and — in the session screen — the
+ * composed draft send and the live keystroke send (`use-mobile-session-terminal-send-actions.ts`)
+ * plus the clipboard paste (`use-mobile-terminal-paste.ts`). Narrowing `object-result-or-null` here
+ * changes what a lost ack means for all five.
  */
 export const terminalInputSend = bindDeferredRpcOperation(
   defineRpcOperation({
@@ -69,5 +73,21 @@ export const workerTerminalTakeoverReport = bindDeferredRpcOperation(
     acceptance: 'success-result-or-skip',
     barrier: 'after-caller-barrier',
     read: rpcUncheckedPayloadReader('worker-terminal-input-reported')
+  })
+)
+
+/**
+ * The terminal menu's buffer clear. A skip rather than a throw because main never looked at the
+ * envelope: it reported success on any fulfilled reply and only a transport rejection reached the
+ * failure toast, so a refusal telling the user the buffer was cleared is behaviour this preserves
+ * rather than repairs.
+ */
+export const terminalBufferClear = bindDeferredRpcOperation(
+  defineRpcOperation({
+    name: 'terminal.clear-buffer-or-skip',
+    method: 'terminal.clearBuffer',
+    acceptance: 'success-result-or-skip',
+    barrier: 'after-caller-barrier',
+    read: rpcUncheckedPayloadReader('terminal-buffer-cleared')
   })
 )
