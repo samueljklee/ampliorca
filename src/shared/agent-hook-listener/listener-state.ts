@@ -7,6 +7,7 @@ import {
   type AgentStatusLegacyAdmissionMode
 } from '../agent-status-legacy-adapter'
 import type { AgentStatusLegacyIngressCaller } from '../agent-status-legacy-ingress-manifest'
+import type { AmplifierSubagentRoster } from '../amplifier-subagent-roster'
 import type { ClaudeSubagentRoster } from '../claude-subagent-roster'
 import type { CodexSubagentRoster } from '../codex-subagent-roster'
 import type { CodexSubagentTranscriptState } from '../codex-subagent-transcript'
@@ -46,6 +47,9 @@ export type HookListenerState = {
   codexLeadStateByPaneKey: Map<string, CodexLeadTurnState>
   /** Newest Grok turn per pane, used to reject end reports that arrive after a replacement prompt. */
   grokActiveTurnByPaneKey: Map<string, GrokActiveTurn>
+  /** Live sub-agents per Amplifier pane, populated from hooks-orca-bridge's own
+   *  agent_start/agent_end feed records (not a pushed hook payload like Claude/Codex). */
+  amplifierSubagentRosterByPaneKey: Map<string, AmplifierSubagentRoster>
 }
 
 export type GrokActiveTurn = {
@@ -103,7 +107,8 @@ export function createHookListenerState(
     codexSubagentRosterByPaneKey: new Map(),
     codexSubagentTranscriptByPaneKey: new Map(),
     codexLeadStateByPaneKey: new Map(),
-    grokActiveTurnByPaneKey: new Map()
+    grokActiveTurnByPaneKey: new Map(),
+    amplifierSubagentRosterByPaneKey: new Map()
   }
   legacyStatusAdapterByState.set(state, adapter)
   return state
@@ -181,6 +186,7 @@ export function clearPaneCacheState(state: HookListenerState, paneKey: string): 
   state.codexSubagentTranscriptByPaneKey.delete(paneKey)
   state.codexLeadStateByPaneKey.delete(paneKey)
   state.grokActiveTurnByPaneKey.delete(paneKey)
+  state.amplifierSubagentRosterByPaneKey.delete(paneKey)
 }
 
 /** Does this pane still hold anything that can ASSERT a state — a stored row, or a Claude latch that
@@ -199,7 +205,8 @@ export function paneHasStateClaims(state: HookListenerState, paneKey: string): b
     state.claudeActiveSessionCronPaneKeys.has(paneKey) ||
     state.claudeSessionOwnerByPaneKey.has(paneKey) ||
     state.codexSubagentRosterByPaneKey.has(paneKey) ||
-    state.codexLeadStateByPaneKey.has(paneKey)
+    state.codexLeadStateByPaneKey.has(paneKey) ||
+    state.amplifierSubagentRosterByPaneKey.has(paneKey)
   )
 }
 
@@ -255,6 +262,7 @@ export function movePaneCacheState(
   movePaneScopedMapEntries(state.codexSubagentTranscriptByPaneKey, fromPaneKey, toPaneKey)
   movePaneScopedMapEntries(state.codexLeadStateByPaneKey, fromPaneKey, toPaneKey)
   movePaneScopedMapEntries(state.grokActiveTurnByPaneKey, fromPaneKey, toPaneKey)
+  movePaneScopedMapEntries(state.amplifierSubagentRosterByPaneKey, fromPaneKey, toPaneKey)
 }
 
 export function clearPaneTurnCacheState(state: HookListenerState, paneKey: string): void {
@@ -304,4 +312,5 @@ export function clearAllListenerCaches(state: HookListenerState): void {
   state.codexSubagentTranscriptByPaneKey.clear()
   state.codexLeadStateByPaneKey.clear()
   state.grokActiveTurnByPaneKey.clear()
+  state.amplifierSubagentRosterByPaneKey.clear()
 }

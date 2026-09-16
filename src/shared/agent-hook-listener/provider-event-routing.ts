@@ -65,6 +65,10 @@ export function isNewTurnEvent(source: AgentHookSource, eventName: unknown): boo
     case 'devin':
       // Why: SessionStart is handled by an early return in normalizeDevinEvent, so UserPromptSubmit is Devin's real new-turn boundary here.
       return eventName === 'UserPromptSubmit'
+    case 'amplifier':
+      // Why: turn_start is hooks-orca-bridge's own record type for prompt:submit -- the
+      // exact same kernel event every other provider's "new turn" boundary maps to.
+      return eventName === 'turn_start'
   }
 }
 
@@ -157,5 +161,10 @@ export function extractToolFields(
       return extractHermesToolFields(eventName, hookPayload)
     case 'devin':
       return extractClaudeToolFields(eventName, hookPayload)
+    case 'amplifier':
+      // Why: hooks-orca-bridge's tool_start record only carries a tool name (see
+      // include_tool_input_preview in the bridge itself) -- no richer per-tool
+      // extraction exists yet; the caller reads hookPayload.tool_name directly.
+      return {}
   }
 }
