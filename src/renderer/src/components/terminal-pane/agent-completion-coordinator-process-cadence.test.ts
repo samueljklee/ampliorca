@@ -187,9 +187,19 @@ describe('agent completion coordinator', () => {
     })
 
     coordinator.startProcessTracking()
-    await vi.advanceTimersByTimeAsync(2_000)
+    vi.advanceTimersByTime(2_000)
+    await flushAsyncTicks()
     foregroundProcess = null
-    await vi.advanceTimersByTimeAsync(1_500)
+    // The first missing sample opens the 1.5s active-cadence settle window;
+    // run each cadence tick so queued inspections observe that full window.
+    vi.advanceTimersByTime(750)
+    await flushAsyncTicks()
+    vi.advanceTimersByTime(750)
+    await flushAsyncTicks()
+    vi.advanceTimersByTime(750)
+    await flushAsyncTicks()
+    vi.advanceTimersByTime(750)
+    await flushAsyncTicks()
 
     expect(onConfirmedProcessExit).toHaveBeenCalledExactlyOnceWith({
       agent: processName === 'amplifier' ? 'amplifier' : 'amplifier-agent',
