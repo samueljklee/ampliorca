@@ -168,6 +168,35 @@ describe('agent completion coordinator', () => {
     })
   })
 
+  it.each([
+    { processName: 'amplifier', label: 'plain amplifier' },
+    { processName: 'amplifier-agent-repl', label: 'amplifier-agent wrapper with no turn in flight' }
+  ])('reports a confirmed exit for $label to surviving-pane cleanup', async ({ processName }) => {
+    let foregroundProcess: string | null = processName
+    const onConfirmedProcessExit = vi.fn()
+    const coordinator = createAgentCompletionCoordinator({
+      paneKey: 'tab-1:leaf-1',
+      getPtyId: () => 'pty-1',
+      getSettings: () => null,
+      inspectProcess: vi.fn(async () =>
+        processResult(foregroundProcess, foregroundProcess !== null)
+      ),
+      dispatchCompletion: vi.fn(),
+      onConfirmedProcessExit,
+      isLive: () => true
+    })
+
+    coordinator.startProcessTracking()
+    await vi.advanceTimersByTimeAsync(2_000)
+    foregroundProcess = null
+    await vi.advanceTimersByTimeAsync(1_500)
+
+    expect(onConfirmedProcessExit).toHaveBeenCalledExactlyOnceWith({
+      agent: processName === 'amplifier' ? 'amplifier' : 'amplifier-agent',
+      processName
+    })
+  })
+
   it('clears process evidence after agent exit so later non-agent spinner titles do not notify', async () => {
     let foregroundProcess: string | null = 'codex'
     const dispatchCompletion = vi.fn()

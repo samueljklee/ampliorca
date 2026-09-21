@@ -17,6 +17,7 @@ export function createWebAgentStatusApi(): Partial<PreloadApi> {
       dropPersisted: () => {},
       dropPersistedBatch: () => {},
       reconcileEndedProcess: () => {},
+      settleAmplifierAgentTurn: () => {},
       dropByTabPrefix: () => {},
       retirePaneAuthority: () => {},
       restorePaneAuthority: () => {},

@@ -69,6 +69,8 @@ export function isNewTurnEvent(source: AgentHookSource, eventName: unknown): boo
       // Why: turn_start is hooks-orca-bridge's own record type for prompt:submit -- the
       // exact same kernel event every other provider's "new turn" boundary maps to.
       return eventName === 'turn_start'
+    case 'amplifier-agent':
+      return eventName === 'prompt:submit'
   }
 }
 
@@ -165,6 +167,8 @@ export function extractToolFields(
       // Why: hooks-orca-bridge's tool_start record only carries a tool name (see
       // include_tool_input_preview in the bridge itself) -- no richer per-tool
       // extraction exists yet; the caller reads hookPayload.tool_name directly.
+      return {}
+    case 'amplifier-agent':
       return {}
   }
 }

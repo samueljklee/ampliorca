@@ -1,8 +1,12 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makePaneKey } from '../../shared/stable-pane-id'
+import {
+  applyAmplifierAgentSubagentStart,
+  getAmplifierAgentRoster
+} from '../../shared/amplifier-agent-subagent-roster'
 import { AgentHookServer } from './server'
 
 const LEAF = '11111111-1111-4111-8111-111111111111'
@@ -59,6 +63,38 @@ function paneState(server: AgentHookServer): string {
 // a restored PTY may never rebuild — leaving the row and its latches with nothing left to retire
 // them. See PLAN-STA-4612 §4.2.
 describe('reconcileEndedProcessForPaneKeys', () => {
+  it('settles a dead amplifier-agent turn without retiring its live REPL pane', async () => {
+    const server = await startServer()
+    try {
+      server.ingestTerminalStatus({
+        paneKey: PANE,
+        tabId: 'tab-1',
+        worktreeId: 'wt-1',
+        connectionId: null,
+        payload: { state: 'working', prompt: 'review the PR', agentType: 'amplifier-agent' }
+      })
+      applyAmplifierAgentSubagentStart(server._getStateForTests(), PANE, {
+        sub_session_id: 'stranded-delegate',
+        agent: 'builder'
+      })
+      const cachedRow = server._getStateForTests().lastStatusByPaneKey.get(PANE)
+      const reconcile = vi.spyOn(server, 'reconcileEndedProcessForPaneKeys')
+
+      server.settleAmplifierAgentTurnForPane(PANE, true)
+
+      expect(paneState(server)).toBe('working')
+      expect(server._getStateForTests().lastStatusByPaneKey.get(PANE)).toBe(cachedRow)
+      expect(reconcile).not.toHaveBeenCalled()
+      expect(
+        getAmplifierAgentRoster(server._getStateForTests(), PANE)?.get('stranded-delegate')
+      ).toMatchObject({
+        state: 'unverifiable'
+      })
+    } finally {
+      server.stop()
+    }
+  })
+
   it('retires a working row whose process is certifiably dead', async () => {
     const server = await startServer()
     try {

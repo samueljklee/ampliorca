@@ -1,4 +1,5 @@
 import { getAppEnvironment } from '../../../../shared/app-environment'
+import { randomUUID } from 'node:crypto'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
 import { isAgentStatusHooksEnabled } from '../../../agent-hooks/managed-agent-hook-controls'
 import { isSafePtySessionId } from '../../../daemon/pty-session-id'
@@ -51,6 +52,15 @@ export async function assemblePtyIpcSpawnCodexEnv(ctx: PtyIpcSpawnState): Promis
   ctx.spawnTiming.mark('codex_resume')
   const codexResumeHome = ctx.codexResumeLaunch.codexResumeHome
   ctx.launchCommand = ctx.codexResumeLaunch.command
+  if (
+    !ctx.preAdoptedStablePane &&
+    !args.connectionId &&
+    args.launchAgent === 'amplifier-agent' &&
+    ctx.launchCommand
+  ) {
+    ctx.amplifierAgentSessionId = randomUUID()
+    ctx.launchCommand = `${ctx.launchCommand} --session-id ${ctx.amplifierAgentSessionId}`
+  }
   ctx.baseEnv = ctx.deps.stripSequencedStartupResumeArgv(ctx.baseEnv, ctx.codexResumeLaunch)
   // Why: declared after the strip so a local-provider spawn cannot capture the
   // pre-strip env — only the daemon branch below re-derives this from baseEnv.

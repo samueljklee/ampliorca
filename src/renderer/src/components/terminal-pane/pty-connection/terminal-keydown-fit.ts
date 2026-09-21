@@ -208,6 +208,13 @@ export function installTerminalKeydownFit(session: ConnectPanePtySession): void 
         currentAgentForExited !== exited.agent
       )
     },
+    onConfirmedProcessExit: () => {
+      // The monitor has two consecutive host observations with neither an
+      // agent nor children (or a host-authoritative remote exited verdict).
+      // This is deliberately the same surviving-pane cleanup used by shell
+      // integration, not a tab-close teardown.
+      window.api.agentStatus.reconcileEndedProcess(session.cacheKey)
+    },
     dispatchCompletion: (title, meta) => {
       if (meta?.source === 'process-exit') {
         session.clearSuppressedTitleSideEffects()

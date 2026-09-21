@@ -57,6 +57,11 @@ function parseResumeArg() {
   return flagIndex !== -1 ? (process.argv[flagIndex + 1] ?? null) : null
 }
 
+function parseSessionIdArg() {
+  const flagIndex = process.argv.lastIndexOf('--session-id')
+  return flagIndex !== -1 ? (process.argv[flagIndex + 1] ?? null) : null
+}
+
 // Why: whether the very first turn this process sends needs `--resume` depends on
 // whether the underlying amplifier-agent session already has prior turns, NOT on
 // whether THIS process has sent one yet -- reopening a worktree pane spawns a brand
@@ -68,6 +73,7 @@ let workspace
 let isContinuingExistingSession
 
 const resumeSessionId = parseResumeArg()
+const requestedSessionId = parseSessionIdArg()
 if (resumeSessionId) {
   const foundWorkspace = findWorkspaceForSession(resumeSessionId)
   sessionId = resumeSessionId
@@ -78,6 +84,11 @@ if (resumeSessionId) {
     )
   }
   isContinuingExistingSession = true
+  writeFileSync(sessionFile, sessionId, 'utf8')
+} else if (requestedSessionId) {
+  sessionId = requestedSessionId
+  workspace = basename(cwd) || 'amplifier-agent-orca'
+  isContinuingExistingSession = false
   writeFileSync(sessionFile, sessionId, 'utf8')
 } else if (existsSync(sessionFile) && readFileSync(sessionFile, 'utf8').trim()) {
   sessionId = readFileSync(sessionFile, 'utf8').trim()
@@ -117,6 +128,8 @@ function runTurn(prompt) {
       if (code !== 0 && code !== null) {
         console.error(`[amplifier-agent-repl] turn exited with code ${code}`)
       }
+      // stderr keeps this lifecycle fact out of the assistant transcript.
+      console.error(`[amplifier-agent-repl] turn-settled session=${sessionId} code=${code}`)
       resolve()
     })
     child.on('error', (err) => {

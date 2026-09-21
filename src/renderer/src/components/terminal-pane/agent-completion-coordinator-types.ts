@@ -42,6 +42,8 @@ export type AgentCompletionCoordinatorOptions = {
     replacement: RecognizedAgentProcess
   ) => boolean
   shouldSuppressConfirmedProcessExitCompletion?: (exited: RecognizedAgentProcess) => boolean
+  /** Called only after the process monitor certifies that the agent has exited. */
+  onConfirmedProcessExit?: (exited: RecognizedAgentProcess) => void
   isLive: () => boolean
   shouldPollProcessCadence?: () => boolean
   // Why: a host that publishes foreground evidence with its inventory lets a

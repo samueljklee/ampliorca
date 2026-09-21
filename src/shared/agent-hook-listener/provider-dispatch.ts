@@ -23,6 +23,7 @@ import { normalizeHermesEvent } from './providers/hermes-events'
 import { normalizeDevinEvent } from './providers/devin-events'
 import { normalizeKimiEvent } from './providers/kimi-events'
 import { normalizeAmplifierEvent } from './providers/amplifier-events'
+import { normalizeAmplifierAgentEvent } from './providers/amplifier-agent-events'
 
 export type ProviderDispatchResult = {
   payload: ParsedAgentStatusPayload | null
@@ -151,6 +152,9 @@ export function normalizeProviderEvent(input: {
       break
     case 'amplifier':
       payload = normalizeAmplifierEvent(state, eventName, promptText, paneKey, hookPayload)
+      break
+    case 'amplifier-agent':
+      payload = normalizeAmplifierAgentEvent(state, eventName, promptText, paneKey, hookPayload)
       break
   }
 

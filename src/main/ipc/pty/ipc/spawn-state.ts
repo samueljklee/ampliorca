@@ -71,6 +71,7 @@ export type PtyIpcSpawnState = {
   codexSelectionTarget: CodexAccountSelectionTarget
   codexResumeLaunch: CodexResumeLaunch
   launchCommand: string | undefined
+  amplifierAgentSessionId: string | undefined
   env: Record<string, string> | undefined
   selectedCodexHomePath: string | null
   spawnEnv: Record<string, string> | undefined
@@ -145,6 +146,7 @@ export function createPtyIpcSpawnState(
     codexSelectionTarget: { runtime: 'host' },
     codexResumeLaunch: noCodexResumeLaunch(undefined),
     launchCommand: undefined,
+    amplifierAgentSessionId: undefined,
     env: undefined,
     selectedCodexHomePath: null,
     spawnEnv: undefined,

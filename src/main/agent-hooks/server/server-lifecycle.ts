@@ -15,6 +15,7 @@ import { clearAllListenerCaches } from '../../../shared/agent-hook-listener/list
 import { trackEmptyPaneKeyHook } from './server-transport-rules'
 import { AgentHookServerRuntimeEnv } from './server-runtime-env'
 import { AmplifierBridgeTailer } from '../amplifier-bridge-tailer'
+import { AmplifierAgentBridgeTailer } from '../amplifier-agent-bridge-tailer'
 
 export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv {
   // Why: Amplifier has no hook script to push events -- this polls
@@ -22,6 +23,7 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv
   // start()/stop() lifecycle as everything else here (created once per
   // "not started" -> "started" transition, torn down on stop()).
   private amplifierBridgeTailer: AmplifierBridgeTailer | null = null
+  private amplifierAgentBridgeTailer: AmplifierAgentBridgeTailer | null = null
 
   /** Start the loopback listener after hydration and spool replay have settled. */
   async start(options?: {
@@ -64,6 +66,10 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv
         this.ingestLiveFileRecord(record)
       )
       this.amplifierBridgeTailer.start()
+      this.amplifierAgentBridgeTailer = new AmplifierAgentBridgeTailer((record) =>
+        this.ingestLiveFileRecord(record)
+      )
+      this.amplifierAgentBridgeTailer.start()
       this.ownerStateInitialized = true
     }
     const handleRequest = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -192,6 +198,8 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv
     this.flushStatusPersistSync()
     this.amplifierBridgeTailer?.stop()
     this.amplifierBridgeTailer = null
+    this.amplifierAgentBridgeTailer?.stop()
+    this.amplifierAgentBridgeTailer = null
     this.rollbackTransportStart()
     this.env = 'production'
     this.onAgentStatus = null
@@ -238,5 +246,18 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv
     this.providerSessionChangeListeners.clear()
     this.enrichedStatusListeners.clear()
     this.statusRowMutationListeners.clear()
+  }
+
+  registerAmplifierAgentSession(paneKey: string, cwd: string, sessionId: string): void {
+    this.amplifierAgentBridgeTailer?.registerSession(paneKey, cwd, sessionId)
+  }
+
+  unregisterAmplifierAgentSession(paneKey: string): void {
+    this.amplifierAgentBridgeTailer?.unregisterSession(paneKey)
+  }
+
+  override clearPaneState(paneKey: string, options?: { emitStatusRowMutation?: boolean }): void {
+    this.unregisterAmplifierAgentSession(paneKey)
+    super.clearPaneState(paneKey, options)
   }
 }

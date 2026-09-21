@@ -99,6 +99,7 @@ export function handleAgentCompletionInspectionResult(args: {
       const exited = state.lastForegroundAgent
       if (exited && state.hasAgentRunEvidence) {
         if (options.shouldSuppressConfirmedProcessExitCompletion?.(exited) !== true) {
+          options.onConfirmedProcessExit?.(exited)
           dispatchCompletion('process-exit', exited.processName, {
             terminalIdleConfirmed: true,
             completionIdentity: {
@@ -159,6 +160,7 @@ export function handleAgentCompletionInspectionResult(args: {
     const exited = state.lastForegroundAgent
     state.pendingProcessExitAgent = null
     if (options.shouldSuppressConfirmedProcessExitCompletion?.(exited) !== true) {
+      options.onConfirmedProcessExit?.(exited)
       const replayIdentityBeforeExit = identityScope.getLast()
       const committed = dispatchCompletion('process-exit', exited.processName, {
         terminalIdleConfirmed: true,

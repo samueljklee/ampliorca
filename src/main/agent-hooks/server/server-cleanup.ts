@@ -3,12 +3,41 @@ import {
   deleteLegacyAgentStatus,
   paneHasStateClaims
 } from '../../../shared/agent-hook-listener/listener-state'
+import {
+  amplifierAgentRosterToSnapshots,
+  settleAmplifierAgentRosterForPane
+} from '../../../shared/amplifier-agent-subagent-roster'
 import { AGENT_STATUS_2A_CURRENT_PRODUCER_MODE } from '../../../shared/agent-status-legacy-adapter'
 import type { AgentStatusCacheIdentity } from '../../../shared/agent-status-types'
 import type { EnrichedAgentHookEventPayload } from './server-types'
 import { AgentHookServerAuthorityFences } from './server-authority-fences'
 
 export abstract class AgentHookServerCleanup extends AgentHookServerAuthorityFences {
+  /** The amplifier-agent REPL is still the pane's live process after one turn's
+   * child exits. Settle stranded delegates and repaint the live row only; do
+   * not mutate the cached row or invoke pane cleanup. */
+  settleAmplifierAgentTurnForPane(paneKey: string, failed: boolean): void {
+    const resolvedPaneKey = this.resolvePaneKeyAlias(paneKey)
+    if (!settleAmplifierAgentRosterForPane(this.state, resolvedPaneKey, { failed })) {
+      return
+    }
+    const current = this.state.lastStatusByPaneKey.get(resolvedPaneKey) as
+      | EnrichedAgentHookEventPayload
+      | undefined
+    if (current?.payload.agentType !== 'amplifier-agent') {
+      return
+    }
+    this.emitEnrichedStatus({
+      ...current,
+      payload: {
+        ...current.payload,
+        subagents: amplifierAgentRosterToSnapshots(
+          this.state.amplifierAgentSubagentRosterByPaneKey.get(resolvedPaneKey)
+        )
+      }
+    })
+  }
+
   /** The resume-identity remnant of a dropped row: a `providerSessionOnly` entry carries no state
    *  claim — it cannot gate a pane `working` — so it survives teardowns that end the pane's live
    *  claims. Returns null when the row has no resumable session to keep. */

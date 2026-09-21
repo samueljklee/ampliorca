@@ -5,6 +5,7 @@ import { recordAgentHibernationPaneOutput } from '@/lib/agent-hibernation-output
 import { observeTerminalBracketedPasteModeOutput } from '../terminal-bracketed-paste'
 import type { PtyDataMeta } from '../pty-dispatcher'
 import { sendTerminalOscColorQueryReplies } from '../terminal-capability-replies'
+import { consumeAmplifierAgentTurnSettlementOutput } from '../../../../../shared/amplifier-agent-turn-settlement'
 
 import { shouldWritePtyOutputForeground } from './foreground-output-scan'
 import { registerE2eTerminalPtyDataInjection } from './e2e-terminal-pty-harness'
@@ -12,6 +13,7 @@ import { registerE2eTerminalPtyDataInjection } from './e2e-terminal-pty-harness'
 import type { ConnectPanePtySession } from './connect-pane-pty-session'
 
 export function bindLiveDataCallback(session: ConnectPanePtySession): void {
+  let pendingAmplifierAgentTurnSettlementOutput = ''
   session.dataCallback = (
     data: string,
     meta?: PtyDataMeta,
@@ -32,6 +34,16 @@ export function bindLiveDataCallback(session: ConnectPanePtySession): void {
       return
     }
     if (data.length > 0) {
+      const turnSettlement = consumeAmplifierAgentTurnSettlementOutput(
+        pendingAmplifierAgentTurnSettlementOutput,
+        data
+      )
+      pendingAmplifierAgentTurnSettlementOutput = turnSettlement.pending
+      for (const { failed } of turnSettlement.settlements) {
+        // This settles only delegates from the per-turn child. The persistent
+        // REPL is still alive, so it must never take the process-exit cleanup path.
+        window.api.agentStatus.settleAmplifierAgentTurn(session.cacheKey, failed)
+      }
       session.hasReceivedPtyOutput = true
       recordAgentHibernationPaneOutput(session.cacheKey)
       // Why: output is the agent-start signal that ends the relaxed no-evidence process-scan cadence (a starting agent always prints).

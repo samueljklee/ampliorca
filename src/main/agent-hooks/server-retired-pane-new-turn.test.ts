@@ -40,7 +40,8 @@ const NEW_TURN_EVENT: Record<AgentHookSource, string | null> = {
   opencode: 'SessionStart',
   'mimo-code': null,
   'command-code': null,
-  amplifier: 'turn_start'
+  amplifier: 'turn_start',
+  'amplifier-agent': 'prompt:submit'
 }
 
 function reviveRetiredPane(source: unknown, hookEventName: string): boolean {

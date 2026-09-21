@@ -240,6 +240,7 @@ export function extractAgentProviderSession(
     case 'command-code':
     case 'hermes':
     case 'amplifier':
+    case 'amplifier-agent':
       return null
   }
 }

@@ -53,7 +53,8 @@ const AGENT_HOOK_SOURCES = [
   'hermes',
   'devin',
   'kimi',
-  'amplifier'
+  'amplifier',
+  'amplifier-agent'
 ] as const
 
 export type AgentHookSource = (typeof AGENT_HOOK_SOURCES)[number]

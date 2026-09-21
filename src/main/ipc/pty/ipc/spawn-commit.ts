@@ -150,6 +150,20 @@ export async function commitPtyIpcSpawn(ctx: PtyIpcSpawnState): Promise<PtySpawn
   const rememberedPaneKey = ctx.validatedPaneKey
     ? rememberPaneKeyForPty(ctx.result.id, ctx.validatedPaneKey)
     : null
+  if (
+    !ctx.stablePaneOwner &&
+    !args.connectionId &&
+    args.launchAgent === 'amplifier-agent' &&
+    rememberedPaneKey &&
+    ctx.cwd &&
+    ctx.amplifierAgentSessionId
+  ) {
+    agentHookServer.registerAmplifierAgentSession(
+      rememberedPaneKey,
+      ctx.cwd,
+      ctx.amplifierAgentSessionId
+    )
+  }
   if (ctx.legacySpawnPaneKey && ctx.migrationUnsupportedPaneKey) {
     agentHookServer.registerPaneKeyAlias(
       ctx.legacySpawnPaneKey.paneKey,

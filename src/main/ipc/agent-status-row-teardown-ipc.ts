@@ -25,6 +25,7 @@ export function registerAgentStatusRowTeardownIpcHandlers(): void {
   ipcMain.removeAllListeners('agentStatus:dropPersisted')
   ipcMain.removeAllListeners('agentStatus:dropPersistedBatch')
   ipcMain.removeAllListeners('agentStatus:reconcileEndedProcess')
+  ipcMain.removeAllListeners('agentStatus:settleAmplifierAgentTurn')
   ipcMain.removeAllListeners('agentStatus:dropByTabPrefix')
 
   ipcMain.on('agentStatus:drop', (_event, paneKey: unknown) => {
@@ -92,6 +93,24 @@ export function registerAgentStatusRowTeardownIpcHandlers(): void {
       clearMigrationUnsupportedPtysForPaneKey(paneKey)
     } catch (err) {
       console.warn('[agent-hooks] reconcileEndedProcessForPaneKeys failed:', err)
+    }
+  })
+
+  ipcMain.on('agentStatus:settleAmplifierAgentTurn', (_event, request: unknown) => {
+    if (
+      typeof request !== 'object' ||
+      request === null ||
+      typeof (request as { paneKey?: unknown }).paneKey !== 'string' ||
+      !isValidPaneKey((request as { paneKey: string }).paneKey) ||
+      typeof (request as { failed?: unknown }).failed !== 'boolean'
+    ) {
+      return
+    }
+    try {
+      const { paneKey, failed } = request as { paneKey: string; failed: boolean }
+      agentHookServer.settleAmplifierAgentTurnForPane(paneKey, failed)
+    } catch (err) {
+      console.warn('[agent-hooks] settleAmplifierAgentTurnForPane failed:', err)
     }
   })
 
