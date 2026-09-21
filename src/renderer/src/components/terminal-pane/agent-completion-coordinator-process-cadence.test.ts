@@ -261,6 +261,11 @@ describe('agent completion coordinator', () => {
     vi.advanceTimersByTime(750)
     await flushAsyncTicks()
 
+    expect(dispatchCompletion).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(1_500)
+    await flushAsyncTicks()
+
     expect(dispatchCompletion).toHaveBeenCalledTimes(1)
     expect(dispatchCompletion).toHaveBeenCalledWith('codex', {
       source: 'process-exit',
@@ -356,10 +361,13 @@ describe('agent completion coordinator', () => {
     result = unavailableResult
     await vi.advanceTimersByTimeAsync(750)
     result = processResult(null, false)
+
+    // Unavailable evidence resets the exit candidate, so the next idle sample
+    // begins a fresh settle interval instead of completing the earlier one.
     await vi.advanceTimersByTimeAsync(1_500)
     expect(dispatchCompletion).not.toHaveBeenCalled()
 
-    await vi.advanceTimersByTimeAsync(750)
+    await vi.advanceTimersByTimeAsync(2_250)
     expect(dispatchCompletion).toHaveBeenCalledTimes(1)
   })
 
@@ -433,7 +441,7 @@ describe('agent completion coordinator', () => {
     await vi.advanceTimersByTimeAsync(2_000)
 
     foregroundProcess = null
-    await vi.advanceTimersByTimeAsync(1_500)
+    await vi.advanceTimersByTimeAsync(3_000)
 
     expect(shouldSuppressConfirmedProcessExitCompletion).toHaveBeenCalledWith({
       agent: 'codex',

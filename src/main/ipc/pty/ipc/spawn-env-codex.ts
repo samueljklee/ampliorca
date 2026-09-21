@@ -1,3 +1,4 @@
+import { inheritOmpLaunchEnvironment } from '../host-env/omp-launch-environment'
 import { getAppEnvironment } from '../../../../shared/app-environment'
 import { randomUUID } from 'node:crypto'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
@@ -143,6 +144,11 @@ export async function assemblePtyIpcSpawnCodexEnv(ctx: PtyIpcSpawnState): Promis
     // Why: clone before mutating so injections don't leak back into args.env (renderer may reuse it).
     ctx.env = { ...ctx.baseEnv }
     try {
+      await inheritOmpLaunchEnvironment(ctx.env, {
+        isWsl: shouldSkipCodexHomeEnvForWindowsShell(ctx.effectiveShellOverride, ctx.cwd),
+        launchAgent: args.launchAgent,
+        launchCommand: ctx.launchCommand
+      })
       buildPtyHostEnv(sessionIdForEnv, ctx.env, {
         isPackaged: getAppEnvironment().isPackaged(),
         resourcesPath: process.resourcesPath,
@@ -155,6 +161,7 @@ export async function assemblePtyIpcSpawnCodexEnv(ctx: PtyIpcSpawnState): Promis
         isWsl: shouldSkipCodexHomeEnvForWindowsShell(ctx.effectiveShellOverride, ctx.cwd),
         wslDistro: ctx.codexSelectionTarget.runtime === 'wsl' ? ctx.expectedWslDistro : null,
         agentStatusHooksEnabled: isAgentStatusHooksEnabled(ptySettings),
+        disabledTuiAgents: ptySettings?.disabledTuiAgents,
         codexStatusHooksEnabled: isCodexStatusHooksEnabled(ptySettings),
         networkProxySettings: ptySettings,
         routeBrowserOpensToClient: ctx.deps.runtime?.shouldRelayTerminalBrowserOpens?.(),

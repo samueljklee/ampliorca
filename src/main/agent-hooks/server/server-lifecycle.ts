@@ -1,3 +1,4 @@
+import { parsePaneKey } from '../../../shared/stable-pane-id'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { randomUUID } from 'node:crypto'
 
@@ -124,9 +125,22 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv
             })
           : 'suppress'
         if (normalized.event && statusDisposition !== 'suppress') {
+          const restartedAuthority =
+            statusDisposition === 'restart' && source === 'omp'
+              ? this.restoreRetiredStatusRestart(normalized.event.paneKey)
+              : undefined
           const event =
             statusDisposition === 'restart'
-              ? { ...normalized.event, launchToken: undefined }
+              ? {
+                  ...normalized.event,
+                  launchToken: undefined,
+                  ...(restartedAuthority
+                    ? {
+                        ...restartedAuthority,
+                        tabId: parsePaneKey(restartedAuthority.paneKey)?.tabId
+                      }
+                    : {})
+                }
               : normalized.event
           if (statusDisposition === 'restart') {
             // Why: a retired pane accepting a new turn is a different agent session behind the
@@ -183,6 +197,7 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv
       this.rollbackTransportStart()
       throw error
     }
+    this.startOpenCodeBinderLoop()
   }
 
   private rollbackTransportStart(): void {
@@ -200,6 +215,7 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv
     this.amplifierBridgeTailer = null
     this.amplifierAgentBridgeTailer?.stop()
     this.amplifierAgentBridgeTailer = null
+    this.stopOpenCodeBinderLoop()
     this.rollbackTransportStart()
     this.env = 'production'
     this.onAgentStatus = null

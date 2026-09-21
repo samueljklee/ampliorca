@@ -13,6 +13,11 @@ import type { ClaudeSubagentRoster } from '../claude-subagent-roster'
 import type { CodexSubagentRoster } from '../codex-subagent-roster'
 import type { CodexSubagentTranscriptState } from '../codex-subagent-transcript'
 import type { AgentHookEventPayload, ToolSnapshot } from './listener-event'
+import {
+  moveOpenCodeSessionBindings,
+  unbindOpenCodeSessionsOfPane,
+  type OpenCodeSessionBinding
+} from './opencode-session-registry'
 
 /** Per-listener-instance caches needing per-PTY teardown; Orca's main process and the relay each get their own, never shared. */
 export type HookListenerState = {
@@ -53,6 +58,15 @@ export type HookListenerState = {
   amplifierSubagentRosterByPaneKey: Map<string, AmplifierSubagentRoster>
   /** Live sub-agents per amplifier-agent pane, populated from its context-intelligence feed. */
   amplifierAgentSubagentRosterByPaneKey: Map<string, AmplifierAgentSubagentRoster>
+  /**
+   * OpenCode session id -> owning pane, observed from the client side. The
+   * shared v2 server stamps every post with its own frozen pane, so ingest
+   * reattributes bound sessions before disposition. Not a state claim itself —
+   * it names no row — so paneHasStateClaims ignores it.
+   */
+  opencodeSessionPaneBySessionId: Map<string, OpenCodeSessionBinding>
+  /** Last launch token seen per pane; a rewritten shared-server post needs the bound pane's live token to pass its fence. */
+  lastLaunchTokenByPaneKey: Map<string, string>
 }
 
 export type GrokActiveTurn = {
@@ -112,7 +126,9 @@ export function createHookListenerState(
     codexLeadStateByPaneKey: new Map(),
     grokActiveTurnByPaneKey: new Map(),
     amplifierSubagentRosterByPaneKey: new Map(),
-    amplifierAgentSubagentRosterByPaneKey: new Map()
+    amplifierAgentSubagentRosterByPaneKey: new Map(),
+    opencodeSessionPaneBySessionId: new Map(),
+    lastLaunchTokenByPaneKey: new Map()
   }
   legacyStatusAdapterByState.set(state, adapter)
   return state
@@ -201,6 +217,8 @@ export function clearPaneCacheState(state: HookListenerState, paneKey: string): 
   state.grokActiveTurnByPaneKey.delete(paneKey)
   state.amplifierSubagentRosterByPaneKey.delete(paneKey)
   state.amplifierAgentSubagentRosterByPaneKey.delete(paneKey)
+  unbindOpenCodeSessionsOfPane(state, paneKey)
+  deletePaneScopedCacheEntry(state.lastLaunchTokenByPaneKey, paneKey)
 }
 
 /** Does this pane still hold anything that can ASSERT a state — a stored row, or a Claude latch that
@@ -279,6 +297,8 @@ export function movePaneCacheState(
   movePaneScopedMapEntries(state.grokActiveTurnByPaneKey, fromPaneKey, toPaneKey)
   movePaneScopedMapEntries(state.amplifierSubagentRosterByPaneKey, fromPaneKey, toPaneKey)
   movePaneScopedMapEntries(state.amplifierAgentSubagentRosterByPaneKey, fromPaneKey, toPaneKey)
+  moveOpenCodeSessionBindings(state, fromPaneKey, toPaneKey)
+  movePaneScopedMapEntries(state.lastLaunchTokenByPaneKey, fromPaneKey, toPaneKey)
 }
 
 export function clearPaneTurnCacheState(state: HookListenerState, paneKey: string): void {
@@ -330,4 +350,6 @@ export function clearAllListenerCaches(state: HookListenerState): void {
   state.grokActiveTurnByPaneKey.clear()
   state.amplifierSubagentRosterByPaneKey.clear()
   state.amplifierAgentSubagentRosterByPaneKey.clear()
+  state.opencodeSessionPaneBySessionId.clear()
+  state.lastLaunchTokenByPaneKey.clear()
 }

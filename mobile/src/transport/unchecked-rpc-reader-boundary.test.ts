@@ -1,8 +1,9 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { extname, join, relative } from 'node:path'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import { censusSourceFiles } from '../test-support/census-source-files'
 import {
   UNCHECKED_RPC_READERS,
   type UncheckedRpcReaderEntry
@@ -46,16 +47,6 @@ const UNCHECKED_READER_NAMES = new Set([
 // them in prose alone.
 const SELF_FILES = new Set(['src/transport/rpc-reader-payload.ts'])
 
-function sourceFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name)
-    if (entry.isDirectory()) {
-      return entry.name === 'node_modules' ? [] : sourceFiles(path)
-    }
-    return [path]
-  })
-}
-
 function parse(path: string, source: string): ts.SourceFile {
   const extension = extname(path)
   return ts.createSourceFile(
@@ -85,7 +76,7 @@ function uncheckedReaderCount(path: string, source: string): number {
 }
 
 const scanned = scannedRoots
-  .flatMap(sourceFiles)
+  .flatMap(censusSourceFiles)
   .filter((path) => sourceExtensions.has(extname(path)))
   .filter((path) => !/\.test\.tsx?$/.test(path))
   .map((path) => relative(mobileRoot, path).split(/[/\\]/).join('/'))
@@ -130,10 +121,11 @@ describe('unchecked RPC reader boundary', () => {
   })
 
   it('scans a plausible number of files', () => {
-    // A broken root or extension filter would make every check below vacuously pass. The floor on
-    // the offender count comes down with the list, so a successful migration step does not fail it.
+    // A broken root or extension filter would make every check below vacuously pass. The list has
+    // reached zero, so the equality now asserts "no unchecked reader ships" — which a scan of
+    // nothing would also satisfy. The file floor is what rules that out, and it stays a constant.
     expect(scanned.length).toBeGreaterThan(400)
-    expect(observed.size).toBeGreaterThan(20)
+    expect(observed.size).toBe(inventory.length)
   })
 
   it('lists each file once', () => {
