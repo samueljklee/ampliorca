@@ -88,7 +88,7 @@ type PtySpawnHostEnvArgs = {
   /** Host accepts empty IDs without host env; window rejects them. */
   emptySessionIdSkipsHostEnv: boolean
   requestedAgentTeamsPath: string | undefined
-  provider: IPtyProvider
+  provider: Pick<IPtyProvider, 'supportsGitCredentialGuardHost'>
   deps: PtySpawnCodexResumeDeps & {
     runtime?: OrcaRuntimeService
     getSettings?: () => GlobalSettings | undefined

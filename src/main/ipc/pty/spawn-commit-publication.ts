@@ -9,7 +9,7 @@ import {
 import { closeStartupQueryAuthorityForPty } from './provider/registry'
 import { commitAttachedPtySize } from './delivery/attached-pty-size'
 import { ptySizes } from './delivery/visibility-state'
-import { rememberPaneKeyForPty } from './pane/key-state'
+import { rememberPaneKeyForPty, getPtyIdForPaneKey } from './pane/key-state'
 import {
   pendingByPaneKey,
   pendingPtyIdBySerializerGeneration,
@@ -20,7 +20,6 @@ import { seedResumeLaunchIdentityFromSpawn } from './pane/resume-launch-identity
 import { recordPtySpawnTelemetry } from './pane/spawn-telemetry'
 import type { PtySpawnOutcome } from './spawn-outcome'
 import type { PtySpawnCommitInput, PtySpawnCommitState } from './spawn-commit-assembly'
-import { getPtyIdForPaneKey } from './pane/key-state'
 import { ptyIncarnationById } from './provider/ownership-state'
 
 /** Window migration inputs: legacy and reminted spawn keys alias the pane's proven key. */

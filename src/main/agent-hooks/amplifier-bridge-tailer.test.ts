@@ -138,9 +138,9 @@ describe('AmplifierBridgeTailer', () => {
     tailer.stop()
 
     expect(ingested).toHaveLength(2)
-    expect(ingested.map((r) => (r.payload as { subsession_id: string }).subsession_id)).toEqual([
-      'sub-1',
-      'sub-1'
+    expect(ingested.map((record) => record.payload)).toEqual([
+      { agent_name: 'anchors:explorer', subsession_id: 'sub-1' },
+      { agent_name: 'anchors:explorer', subsession_id: 'sub-1' }
     ])
   })
 

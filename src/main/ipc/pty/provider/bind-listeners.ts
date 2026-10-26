@@ -1,5 +1,5 @@
 import { LocalPtyProvider } from '../../../providers/local-pty-provider'
-import { isCurrentPtyExit, ptyOwnership } from './ownership-state'
+import { isCurrentPtyExit, ptyOwnership, ptyIncarnationById } from './ownership-state'
 import {
   localBackgroundStreamUnsub,
   localDataUnsub,
@@ -19,7 +19,6 @@ import { publishPtyEndpointLoss } from '../../../runtime/terminal/pty-endpoint-l
 import { agentHookServer } from '../../../agent-hooks/server'
 import { consumeAmplifierAgentTurnSettlementOutput } from '../../../../shared/amplifier-agent-turn-settlement'
 import { ptyPaneKey, getPtyIdForPaneKey } from '../pane/key-state'
-import { ptyIncarnationById } from './ownership-state'
 
 export function bindProviderListeners(session: PtyIpcSession): void {
   const turnOutputByPty = new Map<

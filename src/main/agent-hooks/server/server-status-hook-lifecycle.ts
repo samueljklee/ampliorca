@@ -150,20 +150,26 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
     failed: boolean,
     delegateIds: ReadonlySet<string>
   ): void {
-    // SAFETY: main's stored legacy rows have the enrichment applied by writeLegacyStatusRow.
-    const current = this.state.lastStatusByPaneKey.get(paneKey) as
-      | EnrichedAgentHookEventPayload
-      | undefined
+    const current = this.state.lastStatusByPaneKey.get(paneKey)
     if (
       current?.payload.agentType !== 'amplifier-agent' ||
+      !('receivedAt' in current) ||
+      typeof current.receivedAt !== 'number' ||
+      !('stateStartedAt' in current) ||
+      typeof current.stateStartedAt !== 'number' ||
       !isLocalHookConnectionId(current.connectionId) ||
       current.providerSessionOnly ||
       !settleAmplifierAgentRosterForPane(this.state, paneKey, { failed, delegateIds })
     ) {
       return
     }
-    const settled = {
+    const previous: EnrichedAgentHookEventPayload = {
       ...current,
+      receivedAt: current.receivedAt,
+      stateStartedAt: current.stateStartedAt
+    }
+    const settled = {
+      ...previous,
       payload: {
         ...current.payload,
         subagents: amplifierAgentRosterToSnapshots(
@@ -174,7 +180,7 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
     if (!this.writeLegacyStatusRow(settled)) {
       return
     }
-    this.commitStatusRowMutation(current, settled)
+    this.commitStatusRowMutation(previous, settled)
     this.scheduleStatusPersist()
     this.notifyStatusChangeListeners()
     this.emitEnrichedStatus(settled)

@@ -290,17 +290,17 @@ export class AmplifierAgentBridgeTailer {
     if (typeof record !== 'object' || record === null) {
       return
     }
-    const envelope = record as Record<string, unknown>
-    const hookEventName = typeof envelope.event === 'string' ? envelope.event : ''
+    const envelope = record
+    const hookEventName =
+      'event' in envelope && typeof envelope.event === 'string' ? envelope.event : ''
     if (!hookEventName) {
       return
     }
     const payload =
-      envelope.data && typeof envelope.data === 'object'
-        ? (envelope.data as Record<string, unknown>)
-        : {}
+      'data' in envelope && envelope.data && typeof envelope.data === 'object' ? envelope.data : {}
     if (
       (hookEventName === 'delegate:agent_spawned' || hookEventName === 'delegate:agent_resumed') &&
+      'sub_session_id' in payload &&
       typeof payload.sub_session_id === 'string'
     ) {
       session.delegateOffsets.set(payload.sub_session_id, offset)

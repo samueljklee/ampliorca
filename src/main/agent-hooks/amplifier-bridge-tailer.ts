@@ -164,24 +164,28 @@ export class AmplifierBridgeTailer {
     if (typeof record !== 'object' || record === null) {
       return
     }
-    const envelope = record as Record<string, unknown>
-    const paneKey = typeof envelope.pane_key === 'string' ? envelope.pane_key.trim() : ''
+    const envelope = record
+    const paneKey =
+      'pane_key' in envelope && typeof envelope.pane_key === 'string'
+        ? envelope.pane_key.trim()
+        : ''
     if (!paneKey) {
       // Amplifier running outside Orca (or an old bridge version pre-dating
       // pane_key) writes feed files with no pane to attribute to -- correctly
       // invisible to Orca, not an error.
       return
     }
-    const hookEventName = typeof envelope.type === 'string' ? envelope.type : ''
+    const hookEventName =
+      'type' in envelope && typeof envelope.type === 'string' ? envelope.type : ''
     if (!hookEventName) {
       return
     }
     const payload =
-      envelope.data && typeof envelope.data === 'object'
-        ? (envelope.data as Record<string, unknown>)
-        : {}
+      'data' in envelope && envelope.data && typeof envelope.data === 'object' ? envelope.data : {}
     const launchToken =
-      typeof envelope.launch_token === 'string' ? envelope.launch_token : undefined
+      'launch_token' in envelope && typeof envelope.launch_token === 'string'
+        ? envelope.launch_token
+        : undefined
 
     return this.ingest(
       {

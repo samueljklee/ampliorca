@@ -163,9 +163,9 @@ describe('AmplifierAgentBridgeTailer', () => {
     await vi.advanceTimersByTimeAsync(600)
     tailer.stop()
 
-    expect(ingested.map((record) => (record.payload as { turn_id: string }).turn_id)).toEqual([
-      'turn-1',
-      'turn-2'
+    expect(ingested.map((record) => record.payload)).toEqual([
+      { session_id: 'session-1', turn_id: 'turn-1' },
+      { session_id: 'session-1', turn_id: 'turn-2' }
     ])
   })
 

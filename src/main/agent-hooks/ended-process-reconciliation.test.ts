@@ -8,14 +8,13 @@ import {
   writeFileSync
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makePaneKey } from '../../shared/stable-pane-id'
 import { getAmplifierAgentRoster } from '../../shared/amplifier-agent-subagent-roster'
 import { AgentHookServer } from './server'
 import { buildBody, postHookEvent } from './server.test-fixtures'
 import { amplifierAgentEventsPath } from './amplifier-agent-bridge-tailer'
-import { basename } from 'node:path'
 
 const LEAF = '11111111-1111-4111-8111-111111111111'
 const PANE = makePaneKey('tab-1', LEAF)

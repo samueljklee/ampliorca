@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import type { IPtyProvider } from '../../providers/pty-provider-contract'
 import {
   noCodexResumeLaunch,
   prepareCodexResumeHome,
@@ -29,8 +28,7 @@ function resolve(overrides: Partial<HostEnvArgs> = {}) {
     resumeOnSelectedAccount: false,
     emptySessionIdSkipsHostEnv: false,
     requestedAgentTeamsPath: undefined,
-    // SAFETY: a non-daemon env preparation never invokes the provider.
-    provider: {} as IPtyProvider,
+    provider: {},
     deps: {
       prepareCodexResumeHome: (args) => prepareCodexResumeHome(undefined, args),
       noCodexResumeLaunch,
