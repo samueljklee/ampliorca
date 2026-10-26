@@ -109,6 +109,12 @@ vi.mock('./pty-transport', () => ({
   })
 }))
 
+vi.mock('./remote-runtime-pty-transport', () => ({
+  createRemoteRuntimePtyTransport: vi.fn(() => {
+    throw new Error('Process-exit fixtures must use the mocked IPC transport')
+  })
+}))
+
 vi.mock('./pty-dispatcher', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
   return {
@@ -182,10 +188,10 @@ async function seedHookRow(
   state: 'working' | 'done' = 'done'
 ): Promise<AgentStatusEntry> {
   // Why the real slice: the row must carry the acceptedStatusSeq a real accepted hook stamps.
-  const { createTestStore } = await import('@/store/slices/store-test-helpers')
-  const realStore = createTestStore()
-  realStore.getState().setAgentStatus(paneKey, { state, prompt: 'ship it', agentType })
-  const row = realStore.getState().agentStatusByPaneKey[paneKey]
+  const { createCommandFinishedStatusStore } =
+    await import('./command-finished-status-store-test-fixture')
+  const realStore = createCommandFinishedStatusStore()
+  const row = realStore.acceptStatus(paneKey, { state, prompt: 'ship it', agentType })
   mockStoreState.agentStatusByPaneKey[paneKey] = row
   return row
 }
@@ -221,6 +227,9 @@ describe('connectPanePty confirmed process exit retires the live agent row', () 
       const { paneKey, confirmExit } = await connectAgentPane({ ptyId: `pty-${agent}-relaunch` })
       const exited = await seedHookRow(paneKey, agent)
       confirmExit(agent)
+      expect(window.api.agentStatus.hasVerifiableAgentProcess).toHaveBeenCalledExactlyOnceWith(
+        paneKey
+      )
       mockStoreState.agentStatusByPaneKey[paneKey] = {
         ...exited,
         state: 'working',

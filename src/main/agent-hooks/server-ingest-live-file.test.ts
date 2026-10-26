@@ -3,6 +3,8 @@ import { AgentHookServer, _internals } from './server'
 import { PANE } from './server.test-fixtures'
 import type { SpoolRecord } from '../../shared/agent-hook-spool'
 
+const OBSERVED_AT = 1_800_000_000_000
+
 const { getCohortAtEmitMock, trackMock } = vi.hoisted(() => ({
   getCohortAtEmitMock: vi.fn(),
   trackMock: vi.fn()
@@ -17,6 +19,7 @@ vi.mock('../telemetry/cohort-classifier', () => ({
 }))
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'], now: OBSERVED_AT })
   _internals.resetCachesForTests()
   trackMock.mockReset()
   getCohortAtEmitMock.mockReset()
@@ -25,6 +28,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
 function amplifierRecord(overrides: Partial<SpoolRecord> = {}): SpoolRecord {
@@ -34,7 +38,7 @@ function amplifierRecord(overrides: Partial<SpoolRecord> = {}): SpoolRecord {
     hookEventName: 'turn_start',
     payload: {},
     launchToken: 'token-1',
-    receivedAt: Date.now(),
+    receivedAt: OBSERVED_AT,
     ...overrides
   }
 }

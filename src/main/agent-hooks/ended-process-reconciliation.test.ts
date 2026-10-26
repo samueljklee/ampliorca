@@ -18,11 +18,13 @@ import { amplifierAgentEventsPath } from './amplifier-agent-bridge-tailer'
 
 const LEAF = '11111111-1111-4111-8111-111111111111'
 const PANE = makePaneKey('tab-1', LEAF)
+const OBSERVED_AT = 1_800_000_000_000
 
 let dir: string
 const servers = new Set<AgentHookServer>()
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'], now: OBSERVED_AT })
   dir = mkdtempSync(join(tmpdir(), 'orca-ended-process-'))
 })
 
@@ -32,6 +34,7 @@ afterEach(() => {
   }
   servers.clear()
   rmSync(dir, { recursive: true, force: true })
+  vi.useRealTimers()
 })
 
 async function startServer(): Promise<AgentHookServer> {
@@ -189,7 +192,7 @@ describe('reconcileEndedProcessForPaneKeys', () => {
         source: 'amplifier-agent',
         hookEventName: 'prompt:submit',
         payload: { prompt: 'review the PR' },
-        receivedAt: Date.now()
+        receivedAt: OBSERVED_AT
       })
       spawnDelegate(file, 'stranded-delegate')
       const cachedRow = server._getStateForTests().lastStatusByPaneKey.get(PANE)
