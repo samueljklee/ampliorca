@@ -12,7 +12,7 @@ reaching it.
 
 The operator says "tell the second pane to run the tests." The Chief of Staff
 waits for the sentence to end, reads back "Sending to pane 2 (amplifier-agent,
-idle): *run the tests* — go?", gets a yes, and the text appears in pane 2's
+idle): _run the tests_ — go?", gets a yes, and the text appears in pane 2's
 terminal followed by Enter. The agent there treats it as its next prompt.
 
 ```

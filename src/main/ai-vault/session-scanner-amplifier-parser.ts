@@ -2,12 +2,8 @@ import { basename, dirname, join } from 'node:path'
 import type { AiVaultSession } from '../../shared/ai-vault-types'
 import { wslGatedReadFile } from '../native-chat/wsl-transcript-fs-access'
 import { WslTranscriptFsError } from '../native-chat/wsl-transcript-fs-gate'
-import {
-  addPreviewContent,
-  createAccumulator,
-  finalizeSession,
-  updateTimeline
-} from './session-scanner-accumulator'
+import { createAccumulator, finalizeSession, updateTimeline } from './session-scanner-accumulator'
+import { addSessionContent } from './session-scanner-messages'
 import type { FileWithMtime, SessionAccumulator } from './session-scanner-types'
 import type { TranscriptMessageSink } from './session-transcript-consumers'
 import {
@@ -16,15 +12,6 @@ import {
   extractString,
   normalizeTitleText
 } from './session-scanner-values'
-
-// amplifier's on-disk layout: ~/.amplifier/projects/<sanitized-cwd>/sessions/<id>/
-// holds metadata.json (session_id, working_dir, created, ...) plus a sibling
-// transcript.jsonl (one {"role", "content"} record per line). Sub-agent
-// (delegate()) sessions share the same shape but their directory name is
-// prefixed `0000000000000000-`; those are filtered out at discovery time in
-// session-scanner-agent-sources.ts, same rationale as Claude's pruned
-// Task-subagent transcripts -- not independently resumable, would just
-// duplicate the parent as an untitled row.
 
 export function amplifierTranscriptPathForMetadata(metadataFilePath: string): string {
   return join(dirname(metadataFilePath), 'transcript.jsonl')
@@ -44,8 +31,7 @@ export async function parseAmplifierSessionFile(
       'scan'
     )
   } catch (error) {
-    // metadata.json is written before the first turn; a missing transcript is a
-    // valid metadata-only session, while a WSL gate refusal must stay visible.
+    // Metadata precedes the first turn; only a missing transcript is a valid empty session.
     if (error instanceof WslTranscriptFsError || !isMissingSessionPathError(error)) {
       throw error
     }
@@ -86,10 +72,7 @@ export function parseAmplifierSessionContent(
     messages: messageSink
   })
   accumulator.cwd = extractString(metadata.working_dir)
-  // Why: amplifier generates an AI summary title asynchronously after enough of
-  // the conversation exists (metadata.name / name_generated_at); prefer it over
-  // the first-message fallback below when present, same layering finalizeSession
-  // already gives every other parser (title beats fallbackTitle beats generated).
+  // Prefer the asynchronously generated name over the first-message fallback.
   const generatedName = extractString(metadata.name)
   if (generatedName) {
     accumulator.title = normalizeTitleText(generatedName)
@@ -97,9 +80,6 @@ export function parseAmplifierSessionContent(
   updateTimeline(accumulator, metadata.created)
 
   if (transcriptContent) {
-    // Why: filePath (above) is metadata.json -- needed for identity/delete/cache
-    // keying -- but the actual conversation a human would want to read (View
-    // Log) is this sibling transcript.
     accumulator.logFilePath = amplifierTranscriptPathForMetadata(file.path)
     for (const line of transcriptContent.split('\n')) {
       if (!line.trim()) {
@@ -127,7 +107,7 @@ function consumeAmplifierTranscriptLine(
   if (role === 'user' && !accumulator.fallbackTitle) {
     accumulator.fallbackTitle = normalizeTitleText(extractContentText(record.content) ?? '')
   }
-  addPreviewContent(accumulator, role, record.content, record.timestamp)
+  addSessionContent(accumulator, role, record.content, record.timestamp)
 }
 
 function parseJsonRecord(content: string): Record<string, unknown> | null {

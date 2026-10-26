@@ -1,22 +1,16 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from 'vitest'
+import { quietRichMarkdownEditorHost } from './rich-markdown-editor-host.test-support'
 import { createRichMarkdownEditorDocument } from './create-rich-markdown-editor-document'
 import { RICH_MARKDOWN_EDITOR_MARKUP } from './document-markup'
 import type { RichMarkdownEditorDocument } from './document-host-seams'
 
-/**
- * The caret across a keyboard dismissal, which is the document's hardest piece of state.
- *
- * WebKit discards the DOM selection on blur, so the document saves the caret before it blurs
- * itself and restores it the next time a command needs one. Without that, every toolbar press
- * after the keyboard closed would insert at the end of the document instead of where the user was.
- *
- * The blur below drops the ranges, which is the whole point: a case over a browser that keeps them
- * would pass whatever the document did.
- */
+// Simulate WebKit dropping DOM ranges on blur; restore saved caret for toolbar command instead of inserting at document end. A preserving browser would hide failure.
 const started: RichMarkdownEditorDocument[] = []
 
-function runtime(options: { caret?: 'paragraph-3' | null } = {}) {
+function runtime(
+  options: { caret?: 'paragraph-3' | null; promptForUrl?: () => Promise<string | null> } = {}
+) {
   document.body.innerHTML = RICH_MARKDOWN_EDITOR_MARKUP
   const editor = document.getElementById('editor')!
   editor.innerHTML =
@@ -45,10 +39,13 @@ function runtime(options: { caret?: 'paragraph-3' | null } = {}) {
   // happy-dom implements no `execCommand`; what these cases read is the caret it would act on.
   Object.defineProperty(document, 'execCommand', { value: () => true, configurable: true })
 
-  const document_ = createRichMarkdownEditorDocument({
-    postToHost: () => {},
-    keyboardInsetSource: () => null
-  })
+  const document_ = createRichMarkdownEditorDocument(
+    quietRichMarkdownEditorHost({
+      postToHost: () => {},
+      keyboardInsetSource: () => null,
+      ...(options.promptForUrl ? { promptForUrl: options.promptForUrl } : {})
+    })
+  )
   started.push(document_)
 
   if (options.caret) {
@@ -113,8 +110,7 @@ describe('the editor document caret, across a keyboard dismissal', () => {
   })
 
   it('leaves an uneditable label tap to the checkbox instead of refocusing', () => {
-    // A task-list label forwards its click to the checkbox, so refocusing here would steal it and
-    // re-open the keyboard the user just dismissed.
+    // Task label forwards click to checkbox; refocus would steal it and reopen dismissed keyboard.
     const editor = runtime({ caret: 'paragraph-3' })
     editor.handle.dismissKeyboard()
     editor.tapAt('task-label')
@@ -143,5 +139,52 @@ describe('the editor document caret, across a keyboard dismissal', () => {
     editor.detachContent()
     await editor.handle.runCommand('bold')
     expect(editor.selectedContainer()).toBe('editor-end')
+  })
+})
+
+describe('the editor document caret, across the host’s URL dialog', () => {
+  /** A host that answers the way a modal does: it takes the focus, then it answers. */
+  const modalThatTakesTheFocus = () => {
+    const field = document.createElement('input')
+    document.body.appendChild(field)
+    field.focus()
+    window.getSelection()?.removeAllRanges()
+    return Promise.resolve('https://example.com/a')
+  }
+
+  it('puts the caret back where the dialog found it, so the command has one to act on', async () => {
+    // Page modal owns focus; restore selection or execCommand inserts nothing (Link/Image measured on both engines).
+    const editor = runtime({ caret: 'paragraph-3', promptForUrl: modalThatTakesTheFocus })
+    await editor.handle.runCommand('link')
+    expect(editor.focused()).toBe(true)
+    expect(editor.selectedContainer()).toBe('paragraph-3')
+  })
+
+  it('falls back to the end when the dialog outlived the content it was opened over', async () => {
+    // Host replacement during dialog detaches nodes holding saved caret.
+    let replaceContent = () => {}
+    const editor = runtime({
+      caret: 'paragraph-3',
+      promptForUrl: () => {
+        replaceContent()
+        return modalThatTakesTheFocus()
+      }
+    })
+    replaceContent = editor.detachContent
+    await editor.handle.runCommand('link')
+    expect(editor.selectedContainer()).toBe('editor-end')
+  })
+
+  it('runs no command when the dialog is cancelled, and leaves the caret alone', async () => {
+    const editor = runtime({
+      caret: 'paragraph-3',
+      promptForUrl: () => {
+        window.getSelection()?.removeAllRanges()
+        return Promise.resolve(null)
+      }
+    })
+    await editor.handle.runCommand('link')
+    // No command runs, so no selection restore; command owns restore, not dialog.
+    expect(editor.selectedContainer()).toBe(null)
   })
 })

@@ -50,12 +50,7 @@ export function caretRangeAtPoint(
   return range
 }
 
-/**
- * The caret a command should act on: the live one, the one the dismissal saved, or the end.
- *
- * WebKit drops the DOM selection on blur, so without the saved range every command after a
- * keyboard dismissal would insert at the end of the document rather than where the user left off.
- */
+// Prefer the live caret, then WebKit’s saved blur range, then the end; otherwise every post-dismissal command inserts at document end.
 export function restoreSelectionOrEnd(scope: RichMarkdownEditorScope) {
   focusEditor(scope)
   const selection = scope.getSelection()
@@ -75,20 +70,29 @@ export function restoreSelectionOrEnd(scope: RichMarkdownEditorScope) {
   if (selection.rangeCount > 0) {
     return
   }
+  collapseToEnd(scope)
+}
+
+/** The caret at the end of the document, which is where a command with nothing to act on goes. */
+function collapseToEnd(scope: RichMarkdownEditorScope) {
   const range = scope.getDocument().createRange()
   range.selectNodeContents(editorElement(scope))
   range.collapse(false)
   applySelectionRange(scope, range)
 }
 
-/**
- * Wraps the selection in one element, for the formats `execCommand` has no verb for.
- *
- * `surroundContents` refuses a range that crosses an element boundary, and the fallback extracts
- * and reinserts instead, which is the same result for every selection the toolbar can produce.
- *
- * Emits nothing: `runCommand` is the only caller's caller and reports the change itself.
- */
+// Unconditionally restore URL command’s saved caret after modal takes focus; execCommand otherwise inserts nothing on both engines. Wait itself proves blur without flag.
+export function restoreRememberedSelection(scope: RichMarkdownEditorScope) {
+  focusEditor(scope)
+  const saved = scope.savedSelectionRange
+  if (saved && editorElement(scope).contains(saved.commonAncestorContainer)) {
+    applySelectionRange(scope, saved)
+    return
+  }
+  collapseToEnd(scope)
+}
+
+// Wrap selected format lacking execCommand verb; extract/reinsert if surroundContents crosses element boundary. Emit nothing because runCommand alone reports change.
 export function wrapSelection(scope: RichMarkdownEditorScope, tagName: string) {
   restoreSelectionOrEnd(scope)
   const selection = scope.getSelection()

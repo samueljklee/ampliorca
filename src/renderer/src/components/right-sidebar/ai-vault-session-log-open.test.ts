@@ -15,7 +15,6 @@ vi.mock('@/store', () => ({
 }))
 
 vi.mock('@/i18n/i18n', () => ({
-  // Return the English fallback so assertions can match user-facing copy.
   translate: (_key: string, fallback: string) => fallback
 }))
 
@@ -44,11 +43,8 @@ function makeState(overrides: Partial<FakeState> = {}): FakeState {
   }
 }
 
-let authorizeMock: ReturnType<typeof vi.fn>
-
 beforeEach(() => {
-  authorizeMock = vi.fn().mockResolvedValue(undefined)
-  vi.stubGlobal('window', { api: { fs: { authorizeExternalPath: authorizeMock } } })
+  vi.stubGlobal('window', { api: { fs: {} } })
 })
 
 afterEach(() => {
@@ -57,13 +53,43 @@ afterEach(() => {
 })
 
 describe('openAiVaultSessionLogInOrca', () => {
-  it('authorizes the exact path and opens a permanent read-only local tab', async () => {
+  it('opens the actual transcript of a metadata-anchored session as read-only and client-local', async () => {
+    const state = makeState()
+    getStateMock.mockReturnValue(state)
+    await openAiVaultSessionLogInOrca({
+      filePath: '/home/user/.amplifier/projects/repo/sessions/s1/metadata.json',
+      logFilePath: LOG_PATH,
+      executionHostId: 'local'
+    })
+    expect(state.openFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: LOG_PATH,
+        relativePath: LOG_PATH,
+        runtimeEnvironmentId: null,
+        readOnly: true,
+        liveTail: true
+      }),
+      expect.objectContaining({ suppressActiveRuntimeFallback: true })
+    )
+  })
+
+  it.each([
+    { logFilePath: '   ', executionHostId: 'local' },
+    { logFilePath: '/db.sqlite#session', executionHostId: 'local' },
+    { logFilePath: LOG_PATH, executionHostId: 'ssh:dev-box' }
+  ] as const)('does not bypass log guards with an override: %j', async (overrides) => {
+    const state = makeState()
+    getStateMock.mockReturnValue(state)
+    await openAiVaultSessionLogInOrca({ filePath: '/metadata.json', ...overrides })
+    expect(state.openFile).not.toHaveBeenCalled()
+  })
+
+  it('opens the exact path as a permanent read-only local tab', async () => {
     const state = makeState()
     getStateMock.mockReturnValue(state)
 
     await openAiVaultSessionLogInOrca({ filePath: LOG_PATH, executionHostId: 'local' })
 
-    expect(authorizeMock).toHaveBeenCalledWith({ targetPath: LOG_PATH })
     expect(state.openFile).toHaveBeenCalledTimes(1)
     const [file, options] = state.openFile.mock.calls[0]
     expect(file).toEqual({
@@ -85,7 +111,7 @@ describe('openAiVaultSessionLogInOrca', () => {
     expect(toastErrorMock).not.toHaveBeenCalled()
   })
 
-  it('withholds blank, remote, and synthetic paths without authorizing', async () => {
+  it('withholds blank, remote, and synthetic paths', async () => {
     const state = makeState()
     getStateMock.mockReturnValue(state)
 
@@ -96,30 +122,16 @@ describe('openAiVaultSessionLogInOrca', () => {
       executionHostId: 'local'
     })
 
-    expect(authorizeMock).not.toHaveBeenCalled()
     expect(state.openFile).not.toHaveBeenCalled()
   })
 
-  it('toasts and creates no tab when authorization rejects', async () => {
-    const state = makeState()
+  it('toasts and creates no tab when the workspace no longer exists', async () => {
+    const state = makeState({ worktreesByRepo: {}, folderWorkspaces: [] })
     getStateMock.mockReturnValue(state)
-    authorizeMock.mockRejectedValue(new Error('denied'))
 
     await openAiVaultSessionLogInOrca({ filePath: LOG_PATH, executionHostId: 'local' })
 
     expect(state.openFile).not.toHaveBeenCalled()
-    expect(toastErrorMock).toHaveBeenCalledWith("Couldn't open log — path not authorized.")
-  })
-
-  it('toasts and creates no tab when the workspace vanishes after authorization', async () => {
-    const state = makeState()
-    const stateAfter = makeState({ worktreesByRepo: {}, folderWorkspaces: [] })
-    getStateMock.mockReturnValueOnce(state).mockReturnValue(stateAfter)
-
-    await openAiVaultSessionLogInOrca({ filePath: LOG_PATH, executionHostId: 'local' })
-
-    expect(state.openFile).not.toHaveBeenCalled()
-    expect(stateAfter.openFile).not.toHaveBeenCalled()
     expect(toastErrorMock).toHaveBeenCalledWith(
       "Couldn't open log — workspace is no longer available."
     )
@@ -144,25 +156,5 @@ describe('openAiVaultSessionLogInOrca', () => {
     expect(state.openFile).toHaveBeenCalledTimes(1)
     expect(toastMock).toHaveBeenCalledWith('Log is already open for editing.')
     expect(toastErrorMock).not.toHaveBeenCalled()
-  })
-
-  it('shares one in-flight open for concurrent clicks of the same path', async () => {
-    const state = makeState()
-    getStateMock.mockReturnValue(state)
-    let resolveAuth: (() => void) | undefined
-    authorizeMock.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveAuth = resolve
-        })
-    )
-
-    const first = openAiVaultSessionLogInOrca({ filePath: LOG_PATH, executionHostId: 'local' })
-    const second = openAiVaultSessionLogInOrca({ filePath: LOG_PATH, executionHostId: 'local' })
-    resolveAuth?.()
-    await Promise.all([first, second])
-
-    expect(authorizeMock).toHaveBeenCalledTimes(1)
-    expect(state.openFile).toHaveBeenCalledTimes(1)
   })
 })

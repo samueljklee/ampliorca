@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { PAGE_STORAGE_MAX_VALUE_CHARS } from '../page-storage-keys'
-import pageAsyncStorage, { publishPageStorage } from './page-async-storage'
+import pageAsyncStorage, { PageStorageRefusedError, publishPageStorage } from './page-async-storage'
 
 type Write = { key: string; value: string | null }
 
@@ -8,6 +8,7 @@ const writes: Write[] = []
 let granted = true
 
 const HOST_ID = 'host-1'
+const SESSION_ROUTE = '/h/host-1/session/wt-1'
 
 function publish(entries: Record<string, string> = {}): void {
   writes.length = 0
@@ -20,8 +21,21 @@ function publish(entries: Record<string, string> = {}): void {
       writes.push({ key, value })
       return true
     },
-    HOST_ID
+    HOST_ID,
+    SESSION_ROUTE
   )
+}
+
+async function refusalOf(write: Promise<void>): Promise<PageStorageRefusedError> {
+  try {
+    await write
+  } catch (error) {
+    if (error instanceof PageStorageRefusedError) {
+      return error
+    }
+    throw error
+  }
+  throw new Error('the write was not refused')
 }
 
 beforeEach(() => {
@@ -32,8 +46,7 @@ beforeEach(() => {
 describe('what init primed', () => {
   it('answers a read without waiting on the shell', async () => {
     publish({ 'orca:pins:host-1': '["wt-1"]' })
-    // Synchronous against the cache behind an async surface: a read that waited for a round trip
-    // would change what the first render sees, which is a moved golden.
+    // Read synchronously from the cache behind the async API; a round trip would change first-render/golden timing.
     await expect(pageAsyncStorage.getItem('orca:pins:host-1')).resolves.toBe('["wt-1"]')
     await expect(pageAsyncStorage.getItem('orca:pins:host-2')).resolves.toBeNull()
   })
@@ -69,26 +82,32 @@ describe('a write the page makes', () => {
     await expect(pageAsyncStorage.getItem('orca:pins:host-1')).resolves.toBeNull()
   })
 
-  it('is refused, and not kept, for a key outside the allowlist', async () => {
-    // Held locally it would answer a later read with a value no other screen in the app can see —
-    // a pin that looks set and is not, which is the failure the grant exists to avoid.
-    await pageAsyncStorage.setItem('orca:mobileWebShellEnabled', 'true')
+  it('is dropped, and not kept, for a key outside the allowlist', async () => {
+    // Drop unlisted writes without caching an app-invisible value; preference callers have no catch for a rejection (ruling 33.4).
+    await expect(pageAsyncStorage.setItem('orca:hosts', 'true')).resolves.toBeUndefined()
     expect(writes).toEqual([])
-    await expect(pageAsyncStorage.getItem('orca:mobileWebShellEnabled')).resolves.toBeNull()
+    await expect(pageAsyncStorage.getItem('orca:hosts')).resolves.toBeNull()
   })
 
-  it('is refused, and not kept, when the shell granted no storage', async () => {
-    granted = false
-    await pageAsyncStorage.setItem('orca:pins:host-1', '["wt-1"]')
-    await expect(pageAsyncStorage.getItem('orca:pins:host-1')).resolves.toBeNull()
-  })
-
-  it('carries each pair of a multi-write separately, and drops the ones outside the list', async () => {
-    await pageAsyncStorage.multiSet([
-      ['orca:pins:host-1', '["wt-1"]'],
-      ['orca:remotePushHostRegistrations', '{}']
-    ])
+  it('carries each pair of a multi-write up to the first it cannot, and no further', async () => {
+    await expect(
+      pageAsyncStorage.multiSet([
+        ['orca:pins:host-1', '["wt-1"]'],
+        ['orca:remotePushHostRegistrations', '{}']
+      ])
+    ).resolves.toBeUndefined()
+    // Stop at the first refusal after applying preceding pairs; one batch gets one answer (ruling 35).
     expect(writes).toEqual([{ key: 'orca:pins:host-1', value: '["wt-1"]' }])
+  })
+
+  it('stops a multi-write at a refused first pair rather than applying the rest behind it', async () => {
+    await expect(
+      pageAsyncStorage.multiSet([
+        ['orca:remotePushHostRegistrations', '{}'],
+        ['orca:pins:host-1', '["wt-1"]']
+      ])
+    ).resolves.toBeUndefined()
+    expect(writes).toEqual([])
   })
 
   it('never empties the app store, which is not this document to empty', async () => {
@@ -100,21 +119,63 @@ describe('a write the page makes', () => {
 })
 
 describe('what the page will not keep', () => {
-  it("refuses another host's pinned list, so a later read cannot answer with it", async () => {
+  it("drops another host's pinned list, so a later read cannot answer with it", async () => {
     publish({ 'orca:pins:host-1': '["mine"]' })
-    await pageAsyncStorage.setItem('orca:pins:host-2', '["theirs"]')
-    // Nothing posted, and nothing cached: a value held here that the shell will not write is a pin
-    // that looks set to this document and to nothing else in the app.
+    await expect(
+      pageAsyncStorage.setItem('orca:pins:host-2', '["theirs"]')
+    ).resolves.toBeUndefined()
+    // Neither post nor cache a write the shell refuses; otherwise only this page would believe the pin persisted.
     expect(writes).toEqual([])
     expect(await pageAsyncStorage.getItem('orca:pins:host-2')).toBeNull()
+  })
+
+  it("drops another workspace's chat tabs on the session route it was not opened for", async () => {
+    publish()
+    await expect(
+      pageAsyncStorage.setItem('orca:nativeChatTabs:host-1:wt-2', '{}')
+    ).resolves.toBeUndefined()
+    expect(writes).toEqual([])
+    await pageAsyncStorage.setItem('orca:nativeChatTabs:host-1:wt-1', '{}')
+    expect(writes).toEqual([{ key: 'orca:nativeChatTabs:host-1:wt-1', value: '{}' }])
   })
 
   it('refuses a value over the envelope bound rather than caching what the wire will drop', async () => {
     publish()
     const oversized = 'x'.repeat(PAGE_STORAGE_MAX_VALUE_CHARS + 1)
-    await pageAsyncStorage.setItem('orca:last-visited-worktree', oversized)
+    const refusal = await refusalOf(
+      pageAsyncStorage.setItem('orca:mobileStructuredSendOperations:v1', oversized)
+    )
+    // The durable journal exceeds this bound at 48 unsettled sends; report not-sent rather than lose the operation id (ruling 7).
+    expect(refusal.refusal).toBe('too-large')
+    expect(refusal.message).toContain('orca:mobileStructuredSendOperations:v1')
+    expect(refusal.message).toContain(String(PAGE_STORAGE_MAX_VALUE_CHARS))
     expect(writes).toEqual([])
-    expect(await pageAsyncStorage.getItem('orca:last-visited-worktree')).toBeNull()
+    expect(await pageAsyncStorage.getItem('orca:mobileStructuredSendOperations:v1')).toBeNull()
+  })
+
+  // Stop on the first oversized pair; constructing rejected promises for later failures would leave them unhandled.
+  it('rejects a batch of two oversize pairs once, leaving no rejection nobody holds', async () => {
+    publish()
+    const unhandled: unknown[] = []
+    const record = (reason: unknown) => {
+      unhandled.push(reason)
+    }
+    process.on('unhandledRejection', record)
+    try {
+      const oversized = 'x'.repeat(PAGE_STORAGE_MAX_VALUE_CHARS + 1)
+      const refusal = await refusalOf(
+        pageAsyncStorage.multiSet([
+          ['orca:mobileStructuredSendOperations:v1', oversized],
+          ['orca:custom-accessory-keys', oversized]
+        ])
+      )
+      await new Promise((resolve) => setImmediate(resolve))
+      expect(unhandled).toEqual([])
+      expect(refusal.key).toBe('orca:mobileStructuredSendOperations:v1')
+      expect(writes).toEqual([])
+    } finally {
+      process.off('unhandledRejection', record)
+    }
   })
 
   it('still keeps a value exactly at the bound, so the refusal above discriminates', async () => {
@@ -123,5 +184,27 @@ describe('what the page will not keep', () => {
     await pageAsyncStorage.setItem('orca:last-visited-worktree', atBound)
     expect(writes).toEqual([{ key: 'orca:last-visited-worktree', value: atBound }])
     expect(await pageAsyncStorage.getItem('orca:last-visited-worktree')).toBe(atBound)
+  })
+
+  it('drops a write it may not make rather than rejecting, because nobody catches one', async () => {
+    // Unlisted-key preference writers await setItem without catches, often under void callers; retain silent drop. Only oversize journal writes reject because the composer catches them (ruling 33.4).
+    publish()
+    await expect(
+      pageAsyncStorage.setItem('orca:notificationDeliveryPreferences', '{}')
+    ).resolves.toBeUndefined()
+    expect(writes).toEqual([])
+    expect(await pageAsyncStorage.getItem('orca:notificationDeliveryPreferences')).toBeNull()
+  })
+
+  it('drops a removal it may not make, for the same reason', async () => {
+    publish()
+    await expect(pageAsyncStorage.removeItem('orca:pins:host-2')).resolves.toBeUndefined()
+    expect(writes).toEqual([])
+  })
+
+  it('drops a write the shell would not take, rather than rejecting', async () => {
+    granted = false
+    await expect(pageAsyncStorage.setItem('orca:pins:host-1', '["wt-1"]')).resolves.toBeUndefined()
+    await expect(pageAsyncStorage.getItem('orca:pins:host-1')).resolves.toBeNull()
   })
 })

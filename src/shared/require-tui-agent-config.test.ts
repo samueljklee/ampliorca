@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import type { TuiAgent } from './tui-agent'
 import { requireTuiAgentConfig } from './require-tui-agent-config'
+import { getTuiAgentDetectCommands } from './tui-agent-config'
 
 describe('requireTuiAgentConfig', () => {
   it('returns the config for a known agent', () => {
     expect(requireTuiAgentConfig('codex').preflightTrust).toBe('codex')
   })
+
+  it.each(['amplifier', 'amplifier-agent'] as const)(
+    'detects the %s engine rather than substituting a wrapper',
+    (agent) => {
+      expect(getTuiAgentDetectCommands(requireTuiAgentConfig(agent))).toEqual([agent])
+    }
+  )
 
   it('names the unknown id instead of throwing a property-of-undefined error', () => {
     // A custom-agent id persisted by a branch build, read back by one without the feature.

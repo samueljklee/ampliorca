@@ -142,7 +142,6 @@ export function groupLinearIssues(
   return groupOrderedLinearIssues(sortLinearIssues(issues, orderBy), groupBy)
 }
 
-/** The caller must sort issues by its selected order before grouping. */
 export function groupSortedLinearIssues(
   issues: readonly LinearIssue[],
   groupBy: LinearGroupBy
@@ -196,11 +195,9 @@ export function linearIssueSecondaryParts(
   return parts
 }
 
-export function reconcileTeamSelection(
-  teams: LinearTeam[],
-  saved: string[] | null | undefined
-): Set<string> {
-  if (!saved) {
+// Older hosts may publish raw persisted strings; decode them as sticky-all.
+export function reconcileTeamSelection(teams: LinearTeam[], saved: unknown): Set<string> {
+  if (!Array.isArray(saved)) {
     return new Set(teams.map((team) => team.id))
   }
   const available = new Set(teams.map((team) => team.id))

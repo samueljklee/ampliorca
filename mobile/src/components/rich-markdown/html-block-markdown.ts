@@ -1,14 +1,41 @@
 import { codeFenceFor } from './markdown-code-fence'
 import { escapeTableCell } from './markdown-table-rows'
 import { inlineChildren, inlineMarkdown, textContent } from './html-inline-markdown'
-import { listMarkdown } from './html-list-markdown'
+import { holdsUnownedList, listMarkdown } from './html-list-markdown'
 
-/**
- * One top-level node of the editable surface as a markdown block.
- *
- * Anything with no block of its own — a stray `div`, an element the browser inserted — serializes
- * as its inline content, so an edit never loses text to a tag this reader does not know.
- */
+// WebKit 26.4/Chromium 147 insertUnorderedList nests ul inside p; serialize surrounding inline runs and list as separate blocks or typed list markers vanish. Leave DOM unchanged.
+function blocksAroundLists(element: Element): string {
+  const blocks: string[] = []
+  let inline = ''
+  const flushInline = () => {
+    if (inline.trim()) {
+      blocks.push(inline.trim())
+    }
+    inline = ''
+  }
+  for (const child of Array.from(element.childNodes)) {
+    if (!(child instanceof Element)) {
+      inline += inlineMarkdown(child)
+      continue
+    }
+    const tag = child.tagName.toLowerCase()
+    if (tag === 'ul' || tag === 'ol') {
+      flushInline()
+      blocks.push(listMarkdown(child, 0))
+      continue
+    }
+    if (holdsUnownedList(child)) {
+      flushInline()
+      blocks.push(blocksAroundLists(child))
+      continue
+    }
+    inline += inlineMarkdown(child)
+  }
+  flushInline()
+  return blocks.filter(Boolean).join('\n\n')
+}
+
+// Unknown block elements serialize inline content so browser-created tags cannot lose user text.
 export function blockMarkdown(node: Node): string {
   if (node.nodeType === Node.TEXT_NODE) {
     return textContent(node).trim()
@@ -21,7 +48,7 @@ export function blockMarkdown(node: Node): string {
     return `${'#'.repeat(Number(tag.slice(1)))} ${inlineChildren(node).trim()}`
   }
   if (tag === 'p' || tag === 'div') {
-    return inlineChildren(node).trim()
+    return holdsUnownedList(node) ? blocksAroundLists(node) : inlineChildren(node).trim()
   }
   if (tag === 'blockquote') {
     return inlineChildren(node)

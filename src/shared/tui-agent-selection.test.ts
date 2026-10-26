@@ -10,6 +10,17 @@ describe('pickTuiAgent', () => {
     expect(pickTuiAgent('codex', ['claude', 'codex'])).toBe('codex')
   })
 
+  it('selects either Amplifier identity without displacing upstream fallbacks', () => {
+    expect(pickTuiAgent('amplifier-agent', ['amplifier', 'amplifier-agent'])).toBe(
+      'amplifier-agent'
+    )
+    expect(pickTuiAgent(null, ['amplifier-agent', 'amplifier'])).toBe('amplifier')
+    expect(pickTuiAgent(null, ['amplifier-agent', 'amplifier'], ['amplifier'])).toBe(
+      'amplifier-agent'
+    )
+    expect(pickTuiAgent(null, ['amplifier', 'jcode'])).toBe('jcode')
+  })
+
   it('falls back in desktop catalog order when the preference is absent or stale', () => {
     expect(pickTuiAgent(null, ['cursor', 'codex'])).toBe('codex')
     expect(pickTuiAgent('gemini', ['cursor', 'codex'])).toBe('codex')

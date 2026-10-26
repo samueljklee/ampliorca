@@ -1,27 +1,5 @@
-/**
- * The goldens recorded at a call site inside the C1 page closure, and what each one did at the
- * bridge.
- *
- * C1 moves a screen to the web: `app/h/_layout.tsx` and `app/h/[hostId]/index.tsx` and everything
- * they import. The suite next door already proves the corpus replays byte-identically or in a named
- * class, but it proves it as counts over 787 goldens, and a count is the wrong instrument for the
- * claim C1 needs. These 103 are the ones whose divergence would be this domain's divergence, so
- * each is pinned by id to the verdict it gives, not counted into a total another golden can pay for.
- *
- * The rule is not "none excluded". 54 replay byte for byte and 49 do not, in four of the five
- * classes the suite next door names — 37 `result-absent-settlement`, 7 `params-undefined`, 3
- * `result-absent-stream-release`, 2 `write-ordinal`. Every one is a recorder observation artifact
- * whose wire bytes C0.5 and C0.8 proved identical: what differs is the shape the recorder injects
- * below the frame boundary, or the pre-serialization object a step is matched against, and neither
- * is something a transport carries. What the pin buys is that the 49 are named. A fiftieth arriving
- * is a red test here even though every count in `BRIDGED_PARITY_BASELINE` still holds, because the
- * class it joined has room in its bound for a golden that left.
- *
- * Derived from the value-import closure of the two route modules with `.web.*` resolution applied,
- * against the module each operation's mount adapter loads. `mobileWeb.bundle-manifest` is not here:
- * it reaches the closure only through the shared `rpc-operation.ts` runner, and its own operation
- * module is the shell's, not the page's.
- */
+// Pin verdicts per golden in the resolved web route closure; global class totals can hide one regression offset by another fix.
+// Shell-only bundle operations do not belong to the page closure even when a shared runner reaches them.
 
 import type { PageClosurePins } from './page-closure'
 
@@ -42,6 +20,7 @@ export const C1_PAGE_CLOSURE: PageClosurePins = {
   },
   'settings.workspace-context': {
     'lifecycle-settings-workspace-context-fulfilled': 'identical',
+    'matrix-settings.workspace-context-jira.status-1': 'result-absent-settlement',
     'matrix-settings.workspace-context-linear.status-1': 'result-absent-settlement',
     'matrix-settings.workspace-context-preflight.check-1': 'result-absent-settlement',
     'matrix-settings.workspace-context-settings.get-1': 'result-absent-settlement',
@@ -98,26 +77,11 @@ export const C1_PAGE_CLOSURE: PageClosurePins = {
     'matrix-host.worktree-actions-worktree.rm-1': 'result-absent-settlement',
     'matrix-host.worktree-actions-worktree.set-1': 'result-absent-settlement'
   },
-  'transport.capability-probe': {
-    'matrix-transport.capability-probe-status.get-1': 'result-absent-settlement',
-    'transport-capability-probe-cutover-reasks-fast': 'identical',
-    'transport-capability-probe-non-string-capabilities-drop': 'identical',
-    'transport-capability-probe-publishes': 'identical',
-    'transport-capability-probe-refused-backs-off': 'identical'
-  },
   'components.execution-target': {
     'components-target-ssh': 'identical',
     'matrix-components.execution-target-preflight.detectremoteagents-1': 'result-absent-settlement',
     'matrix-components.execution-target-ssh.connect-1': 'result-absent-settlement',
     'matrix-components.execution-target-ssh.getstate-1': 'result-absent-settlement'
-  },
-  'notifications.push-registration': {
-    'matrix-notifications.push-registration-notifications.registerpush-1':
-      'result-absent-settlement',
-    'matrix-notifications.push-registration-notifications.unregisterpush-1':
-      'result-absent-settlement',
-    'notifications-push-gateway-rejected': 'identical',
-    'notifications-push-registered': 'identical'
   },
   'settings.workspace-submit': {
     'matrix-settings.workspace-submit-settings.get-1': 'result-absent-settlement',
@@ -145,6 +109,7 @@ export const C1_PAGE_CLOSURE: PageClosurePins = {
   },
   'host.view-settings': {
     'host-view-settings-sync': 'identical',
+    'matrix-host.view-settings-settings.get-1': 'result-absent-settlement',
     'matrix-host.view-settings-ui.get-1': 'result-absent-settlement',
     'matrix-host.view-settings-ui.set-1': 'result-absent-settlement'
   },

@@ -26,36 +26,59 @@ const POLL_INTERVAL_MS = 300
 
 export class AmplifierBridgeTailer {
   private readonly feedDir: string
-  private readonly ingest: (record: SpoolRecord) => void
+  private readonly ingest: (record: SpoolRecord, isCurrent: () => boolean) => void | Promise<void>
   private readonly offsetByPath = new Map<string, number>()
   private timer: ReturnType<typeof setInterval> | null = null
+  private generation = 0
+  private polling = false
 
   constructor(
-    ingest: (record: SpoolRecord) => void,
+    ingest: (record: SpoolRecord, isCurrent: () => boolean) => void | Promise<void>,
     feedDir: string = AMPLIFIER_BRIDGE_DEFAULT_FEED_DIR
   ) {
     this.ingest = ingest
     this.feedDir = feedDir
   }
 
-  start(): void {
+  start(options?: { skipExisting?: boolean }): void {
     if (this.timer) {
       return
     }
-    this.timer = setInterval(() => this.pollOnce(), POLL_INTERVAL_MS)
+    if (options?.skipExisting) {
+      try {
+        for (const name of readdirSync(this.feedDir)) {
+          if (name.endsWith('.jsonl')) {
+            const path = join(this.feedDir, name)
+            this.offsetByPath.set(path, statSync(path).size)
+          }
+        }
+      } catch {
+        // No feed yet.
+      }
+    }
+    this.timer = setInterval(() => {
+      if (!this.polling) {
+        this.polling = true
+        void this.pollOnce(this.generation)
+          .catch((error: unknown) => console.error('[amplifier-bridge] poll failed', error))
+          .finally(() => {
+            this.polling = false
+          })
+      }
+    }, POLL_INTERVAL_MS)
     // Why: a background status poller must never be the reason the process stays alive.
     this.timer.unref()
   }
 
   stop(): void {
+    this.generation += 1
     if (this.timer) {
       clearInterval(this.timer)
       this.timer = null
     }
-    this.offsetByPath.clear()
   }
 
-  private pollOnce(): void {
+  private async pollOnce(generation: number): Promise<void> {
     let names: string[]
     try {
       names = readdirSync(this.feedDir)
@@ -68,11 +91,14 @@ export class AmplifierBridgeTailer {
       if (!name.endsWith('.jsonl')) {
         continue
       }
-      this.pollFile(join(this.feedDir, name))
+      if (generation !== this.generation) {
+        return
+      }
+      await this.pollFile(join(this.feedDir, name), generation)
     }
   }
 
-  private pollFile(path: string): void {
+  private async pollFile(path: string, generation: number): Promise<void> {
     let size: number
     try {
       size = statSync(path).size
@@ -108,18 +134,27 @@ export class AmplifierBridgeTailer {
       const completeLines = lines.slice(0, -1)
       let consumedBytes = 0
       for (const line of completeLines) {
+        if (generation !== this.generation) {
+          return
+        }
         consumedBytes += Buffer.byteLength(line, 'utf8') + 1 // +1 for the newline itself
         if (line.length > 0) {
-          this.processLine(line)
+          const pending = this.processLine(line, () => generation === this.generation)
+          if (pending) {
+            await pending
+          }
         }
+        if (generation !== this.generation) {
+          return
+        }
+        this.offsetByPath.set(path, previousOffset + consumedBytes)
       }
-      this.offsetByPath.set(path, previousOffset + consumedBytes)
     } finally {
       closeSync(fd)
     }
   }
 
-  private processLine(line: string): void {
+  private processLine(line: string, isCurrent: () => boolean): void | Promise<void> {
     let record: unknown
     try {
       record = JSON.parse(line)
@@ -148,13 +183,16 @@ export class AmplifierBridgeTailer {
     const launchToken =
       typeof envelope.launch_token === 'string' ? envelope.launch_token : undefined
 
-    this.ingest({
-      paneKey,
-      source: 'amplifier',
-      hookEventName,
-      payload,
-      launchToken,
-      receivedAt: Date.now()
-    })
+    return this.ingest(
+      {
+        paneKey,
+        source: 'amplifier',
+        hookEventName,
+        payload,
+        launchToken,
+        receivedAt: Date.now()
+      },
+      isCurrent
+    )
   }
 }

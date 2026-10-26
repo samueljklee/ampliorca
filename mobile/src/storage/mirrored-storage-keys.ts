@@ -1,37 +1,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-/**
- * The handful of stored keys the app also keeps in memory, for a reader that cannot await one.
- *
- * The hybrid shell is that reader: it hands the page these keys on every `init`, which is built
- * synchronously, so a value it had to read out of the store would always be the one from before
- * the app's last write. Every writer of a mirrored key notes it here as it writes, and the store
- * read below only seats the map, so what a reader is answered with is current at the moment it
- * asks. Which keys those are is the caller's to say: this holds no policy about them.
- */
-const mirror = new Map<string, string>()
+// Shell init is synchronous, so mirror stored keys in memory; page-reachable writes must use persistMirrored.
+// Null records a known removal, distinct from an unhydrated key.
+const mirror = new Map<string, string | null>()
 
-/** Counts writes, so a store read that started before one cannot land on top of it. */
 let writeCount = 0
 
-/** The named keys as they stand. Nothing else can come back, whatever the map happens to hold. */
 export function readMirroredStorage(keys: readonly string[]): Readonly<Record<string, string>> {
   const held: Record<string, string> = {}
   for (const key of keys) {
     const value = mirror.get(key)
-    if (value !== undefined) {
+    if (typeof value === 'string') {
       held[key] = value
     }
   }
   return held
 }
 
-/**
- * Seats the map on the app's store for the named keys.
- *
- * Never rejects: a store that would not answer leaves the last map standing, so a reader is served
- * something stale rather than nothing, and the next ask tries again.
- */
+// Failed hydration retains the last mirror for synchronous readers and retries on the next ask.
 export async function hydrateMirroredStorage(keys: readonly string[]): Promise<void> {
   const startedAt = writeCount
   let pairs: readonly (readonly [string, string | null])[]
@@ -41,41 +27,61 @@ export async function hydrateMirroredStorage(keys: readonly string[]): Promise<v
     return
   }
   if (writeCount !== startedAt) {
-    // A write landed while the read was open, so the read is already behind it. The write stands
-    // and the next ask re-reads, rather than this answer putting the older value back.
+    // Writes outrank an overlapping read; discard its stale snapshot and reread next time.
     return
   }
   for (const [key, value] of pairs) {
-    // What was asked for and nothing else: the answer is what a reader is served, so a store that
-    // returned a key it was not asked about must not put one in the map.
-    if (!keys.includes(key)) {
-      continue
-    }
-    if (value === null) {
-      mirror.delete(key)
-    } else {
+    // A store must not inject keys outside the requested route scope.
+    if (keys.includes(key)) {
       mirror.set(key, value)
     }
   }
 }
 
-/** Notes a write whose caller persists it itself, which is how the app's own writers stay current. */
-export function noteMirroredWrite(key: string, value: string | null): void {
-  writeCount += 1
-  if (value === null) {
-    mirror.delete(key)
-  } else {
-    mirror.set(key, value)
+// Unlike bulk hydration, preserve store rejection so unavailable storage cannot masquerade as an unset key.
+export async function readMirroredKeyOrStore(key: string): Promise<string | null> {
+  const held = mirror.get(key)
+  return held === undefined ? AsyncStorage.getItem(key) : held
+}
+
+type MirroredKeyListener = (value: string | null) => void
+const keyListeners = new Map<string, Set<MirroredKeyListener>>()
+
+export function subscribeMirroredKey(key: string, listener: MirroredKeyListener): () => void {
+  const forKey = keyListeners.get(key) ?? new Set<MirroredKeyListener>()
+  keyListeners.set(key, forKey)
+  forKey.add(listener)
+  return () => {
+    forKey.delete(listener)
   }
 }
 
-/** Noted first, then persisted, because a reader is answered from the map and not from the store. */
+function note(key: string, value: string | null): void {
+  writeCount += 1
+  mirror.set(key, value)
+  for (const listener of keyListeners.get(key) ?? []) {
+    listener(value)
+  }
+}
+
+// Mirror only accepted writes; page stores can refuse route keys or oversized values, and callers need the refusal.
+export function persistMirrored(key: string, value: string | null): Promise<void> {
+  const write = value === null ? AsyncStorage.removeItem(key) : AsyncStorage.setItem(key, value)
+  // Read back before noting: the page adapter can resolve a refused write, so requested value is not proof of persistence.
+  return write
+    .then(() => AsyncStorage.getItem(key))
+    .then((stored) => {
+      note(key, stored)
+    })
+}
+
+// Native-shell-only: note before async storage so the next synchronous init sees the page’s accepted value.
+// Page-reachable writers use persistMirrored because their adapter can refuse writes.
 export function writeMirroredStorage(key: string, value: string | null): void {
-  noteMirroredWrite(key, value)
+  note(key, value)
   void (value === null ? AsyncStorage.removeItem(key) : AsyncStorage.setItem(key, value)).catch(
     () => {
-      // Nothing is owed to the page for a notify, and a pin that failed to persist is not a reason
-      // to take the workspace off screen.
+      // A failed pin persistence must not take the workspace off screen.
     }
   )
 }

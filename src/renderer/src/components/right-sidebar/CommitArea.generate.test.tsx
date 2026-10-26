@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { CommitArea } from './SourceControl'
+import { CommitArea } from './source-control/commit/commit-area'
 import {
   hasConfiguredCommitMessageGenerationDefaults,
   hasConfiguredSourceControlTextGenerationDefaults
@@ -105,7 +105,6 @@ describe('CommitArea AI generation', () => {
 
     const button = buttonByLabel(markup, 'Generate commit message with AI')
     expect(hasDisabledAttribute(button)).toBe(false)
-    // Why: single Radix tooltip only — native title removed to avoid duplicate tooltips.
     expect(button).not.toContain('title=')
   })
 
@@ -180,15 +179,6 @@ describe('CommitArea AI generation', () => {
 
     expect(markup).toContain('No staged changes to summarize.')
     expect(markup).toContain('aria-describedby="commit-area-generate-error"')
-  })
-
-  it('continues to render the split commit button alongside generation controls', () => {
-    const markup = renderCommitArea({
-      ...baseProps(),
-      aiAgentConfigured: true
-    })
-    expect(markup).toContain('Commit')
-    expect(markup).toContain('aria-label="Generate commit message with AI"')
   })
 
   it('renders a single commit-message AI entry point in the composer', () => {

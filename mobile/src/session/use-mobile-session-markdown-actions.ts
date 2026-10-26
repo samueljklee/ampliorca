@@ -1,12 +1,32 @@
-import { useEffect, useCallback } from 'react'
-import { BackHandler, Keyboard } from 'react-native'
+import { useCallback } from 'react'
+import { Keyboard, Platform } from 'react-native'
 import { useClipboardWriter } from '../platform/clipboard'
+import { useBackClaim } from '../navigation/use-back-claim'
 import { markdownTabSave } from './mobile-session-write-operations'
 import { triggerSuccess, triggerError } from '../platform/haptics'
 import type { DirtyMarkdownDraft, MobileSessionTab } from './mobile-session-route-types'
 import type { MobileSessionDiffCommentsModel } from './use-mobile-session-diff-comments'
 
-export function useMobileSessionMarkdownActions(scope: MobileSessionDiffCommentsModel) {
+// Depend on the action’s narrow scope so Back behavior can be tested without constructing the whole session model.
+export type MobileSessionMarkdownActionsScope = Pick<
+  MobileSessionDiffCommentsModel,
+  | 'hostId'
+  | 'worktreeId'
+  | 'router'
+  | 'client'
+  | 'sessionTabs'
+  | 'setMarkdownDocs'
+  | 'markdownDocs'
+  | 'setDiscardMarkdownTarget'
+  | 'discardMarkdownTarget'
+  | 'setLeaveDrafts'
+  | 'markdownSaveSeqRef'
+  | 'markdownSaveInFlightRef'
+  | 'showToast'
+  | 'readMarkdownTab'
+>
+
+export function useMobileSessionMarkdownActions(scope: MobileSessionMarkdownActionsScope) {
   const {
     hostId,
     worktreeId,
@@ -33,6 +53,7 @@ export function useMobileSessionMarkdownActions(scope: MobileSessionDiffComments
       const next = new Map(prev)
       next.set(tabId, {
         ...current,
+        localRevision: (current.localRevision ?? 0) + 1,
         localContent: content,
         isDirty: content !== current.content,
         saveError: undefined
@@ -47,9 +68,7 @@ export function useMobileSessionMarkdownActions(scope: MobileSessionDiffComments
       if (current?.status !== 'ready') {
         return
       }
-      // Caught here because the only caller is `void copyMarkdownLocalContent(...)`: the seam
-      // rejects when the pasteboard refused the text, and an uncaught rejection would leave
-      // "Copied" as the last word on a copy that did not happen.
+      // Contain fire-and-forget clipboard refusal so Copied cannot remain as false success feedback.
       try {
         await clipboard.writeText(current.localContent)
       } catch {
@@ -61,6 +80,19 @@ export function useMobileSessionMarkdownActions(scope: MobileSessionDiffComments
       showToast('Copied')
     },
     [clipboard, markdownDocs, showToast]
+  )
+
+  const copyMarkdownPath = useCallback(
+    async (tab: Extract<MobileSessionTab, { type: 'markdown' }>) => {
+      try {
+        await clipboard.writeText(tab.relativePath || tab.filePath)
+        showToast('Path copied')
+      } catch {
+        triggerError()
+        showToast("Couldn't copy path", 1500)
+      }
+    },
+    [clipboard, showToast]
   )
 
   const getDirtyMarkdownDrafts = useCallback(() => {
@@ -93,13 +125,16 @@ export function useMobileSessionMarkdownActions(scope: MobileSessionDiffComments
     setLeaveDrafts(dirtyDrafts)
   }, [getDirtyMarkdownDrafts, leaveSession])
 
-  useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      requestLeaveSession()
-      return true
-    })
-    return () => subscription.remove()
-  }, [requestLeaveSession])
+  // Native always claims Back to avoid root exit; the web shell already pops, so only dirty drafts need a claim.
+  const hasDirtyDraft = getDirtyMarkdownDrafts().length > 0
+  useBackClaim(
+    Platform.OS === 'web' && !hasDirtyDraft
+      ? null
+      : () => {
+          requestLeaveSession()
+          return true
+        }
+  )
 
   const discardMarkdownLocalContent = useCallback(
     (tab: Extract<MobileSessionTab, { type: 'markdown' }>) => {
@@ -145,7 +180,12 @@ export function useMobileSessionMarkdownActions(scope: MobileSessionDiffComments
         if (existing?.status !== 'ready') {
           return prev
         }
-        return new Map(prev).set(tab.id, { ...existing, saving: true, saveError: undefined })
+        return new Map(prev).set(tab.id, {
+          ...existing,
+          localRevision: (existing.localRevision ?? 0) + 1,
+          saving: true,
+          saveError: undefined
+        })
       })
       try {
         const response = await markdownTabSave.request(client, {
@@ -158,8 +198,12 @@ export function useMobileSessionMarkdownActions(scope: MobileSessionDiffComments
         if (markdownSaveSeqRef.current.get(tab.id) !== saveSeq) {
           return
         }
-        setMarkdownDocs((prev) =>
-          new Map(prev).set(tab.id, {
+        setMarkdownDocs((prev) => {
+          const existing = prev.get(tab.id)
+          const revision =
+            existing?.status === 'ready' ? existing.localRevision : current.localRevision
+          return new Map(prev).set(tab.id, {
+            localRevision: (revision ?? 0) + 1,
             status: 'ready',
             content: result.content,
             localContent: result.content,
@@ -167,7 +211,7 @@ export function useMobileSessionMarkdownActions(scope: MobileSessionDiffComments
             isDirty: false,
             editable: true
           })
-        )
+        })
         markdownSaveSeqRef.current.delete(tab.id)
         triggerSuccess()
         showToast('Saved')
@@ -184,6 +228,7 @@ export function useMobileSessionMarkdownActions(scope: MobileSessionDiffComments
           }
           return new Map(prev).set(tab.id, {
             ...existing,
+            localRevision: (existing.localRevision ?? 0) + 1,
             saving: false,
             saveError: message || 'Save failed'
           })
@@ -197,6 +242,7 @@ export function useMobileSessionMarkdownActions(scope: MobileSessionDiffComments
   return {
     updateMarkdownLocalContent,
     copyMarkdownLocalContent,
+    copyMarkdownPath,
     getDirtyMarkdownDrafts,
     leaveSession,
     requestLeaveSession,

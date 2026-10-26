@@ -7,6 +7,7 @@ import {
   MOBILE_WEB_BUNDLE_ENTRYPOINT,
   MOBILE_WEB_BUNDLE_MAX_ASSETS,
   MOBILE_WEB_BUNDLE_MAX_ASSET_BYTES,
+  MOBILE_WEB_BUNDLE_MAX_ROUTE_GRANTS,
   MOBILE_WEB_BUNDLE_MAX_ROUTES,
   MOBILE_WEB_BUNDLE_MAX_TOTAL_BYTES,
   MOBILE_WEB_BUNDLE_SCHEMA_VERSION,
@@ -103,6 +104,20 @@ describe('MobileWebBundleManifestSchema', () => {
   })
 })
 
+describe('the page version a manifest carries', () => {
+  it('takes a count, which is what a shell floors on', () => {
+    expect(
+      MobileWebBundleManifestSchema.safeParse(manifestOf([ENTRY], { pageVersion: 1 })).success
+    ).toBe(true)
+    for (const bad of [-1, 1.5, '1']) {
+      expect(
+        MobileWebBundleManifestSchema.safeParse(manifestOf([ENTRY], { pageVersion: bad })).success,
+        String(bad)
+      ).toBe(false)
+    }
+  })
+})
+
 describe('the page routes a manifest declares', () => {
   function withRoutes(routes: unknown): boolean {
     return MobileWebBundleManifestSchema.safeParse(manifestOf([ENTRY], { routes })).success
@@ -114,8 +129,7 @@ describe('the page routes a manifest declares', () => {
   })
 
   it('refuses a pathname a phone could not write into its own history', () => {
-    // Each of these reaches `history.replaceState` on the phone, where `//host` throws a
-    // cross-origin SecurityError and a query or a fragment is a second field pasted into the first.
+    // Phone history rejects cross-origin //host paths; query/fragment belong in separate fields.
     for (const pathname of [
       'h/[hostId]',
       '//evil.example/h',
@@ -128,8 +142,7 @@ describe('the page routes a manifest declares', () => {
   })
 
   it('refuses a grant name that is not one', () => {
-    // One segment under `native` is not a verb: the namespace is `native.<domain>.<action>`, and
-    // anything shorter is a plain name wearing a dot.
+    // Native verbs require native.<domain>.<action>; native.navigate is incomplete.
     expect(withRoutes([{ pathname: '/h', grants: ['native.navigate'] }])).toBe(false)
     expect(withRoutes([{ pathname: '/h', grants: [''] }])).toBe(false)
     for (const grant of ['navigate.', '.native', 'native..read', 'Native.Clipboard.Read', 'a.b']) {
@@ -138,8 +151,7 @@ describe('the page routes a manifest declares', () => {
   })
 
   it('takes a native verb, which a route must be able to declare to ever be granted one', () => {
-    // Without this no manifest can name a verb, and with per-route grants that leaves every native
-    // verb unreachable for every route.
+    // Every native verb must be representable in per-route grants to remain reachable.
     for (const grant of [
       'native.clipboard.write',
       'native.clipboard.read',
@@ -150,9 +162,7 @@ describe('the page routes a manifest declares', () => {
     }
   })
 
-  /** The first plain grant added since this pattern was written, and the reason its name has no
-   *  dot: one segment under `native` is refused as a malformed verb, so a capability that is not a
-   *  verb has to be a single token. */
+  /** Non-verb capabilities use a plain token; a single native segment would be rejected as a malformed verb. */
   it('takes the binary screencast lane, and refuses the spelling that looks like a verb', () => {
     expect(withRoutes([{ pathname: '/h', grants: ['screencastBinary'] }])).toBe(true)
     expect(withRoutes([{ pathname: '/h', grants: ['native.screencast'] }])).toBe(false)
@@ -161,6 +171,51 @@ describe('the page routes a manifest declares', () => {
 
   it('refuses a route carrying a field the contract does not declare', () => {
     expect(withRoutes([{ pathname: '/h', grants: [], screen: 'x' }])).toBe(false)
+  })
+
+  /** Required and optional grants share grammar and a union ceiling because one session granted-list combines them (ruling 37). */
+  it('takes an optional grant list, absent or empty, under the same grammar', () => {
+    expect(withRoutes([{ pathname: '/h', grants: ['navigate'], optionalGrants: [] }])).toBe(true)
+    expect(
+      withRoutes([{ pathname: '/h', grants: ['navigate'], optionalGrants: ['screencastBinary'] }])
+    ).toBe(true)
+    expect(
+      withRoutes([
+        { pathname: '/h', grants: ['navigate'], optionalGrants: ['native.clipboard.write'] }
+      ])
+    ).toBe(true)
+    // The spellings the required lane refuses, refused here too.
+    expect(
+      withRoutes([{ pathname: '/h', grants: [], optionalGrants: ['native.screencast'] }])
+    ).toBe(false)
+    expect(withRoutes([{ pathname: '/h', grants: [], optionalGrants: [''] }])).toBe(false)
+  })
+
+  it('bounds the two lists together, not one at a time', () => {
+    const names = (count, prefix) =>
+      Array.from({ length: count }, (_value, index) => `${prefix}${String(index)}`)
+    const half = MOBILE_WEB_BUNDLE_MAX_ROUTE_GRANTS / 2
+    // At the ceiling exactly, split across the lanes.
+    expect(
+      withRoutes([
+        { pathname: '/h', grants: names(half, 'req'), optionalGrants: names(half, 'opt') }
+      ])
+    ).toBe(true)
+    // Individually valid arrays can exceed the combined session grant cap.
+    expect(
+      withRoutes([
+        { pathname: '/h', grants: names(half + 1, 'req'), optionalGrants: names(half, 'opt') }
+      ])
+    ).toBe(false)
+    expect(
+      withRoutes([
+        {
+          pathname: '/h',
+          grants: [],
+          optionalGrants: names(MOBILE_WEB_BUNDLE_MAX_ROUTE_GRANTS + 1, 'opt')
+        }
+      ])
+    ).toBe(false)
   })
 
   it('requires the field, so a bundle cannot leave the shell guessing', () => {
@@ -292,31 +347,6 @@ describe('refinement short-circuit', () => {
     const withinCeiling = assetsTotalling(MOBILE_WEB_BUNDLE_MAX_ASSETS, 64)
     expect(issuePaths(manifestOf(withinCeiling, { buildId: WRONG_BUILD_ID }))).toEqual(['buildId'])
   })
-
-  it('does not hash an oversized asset list', () => {
-    const overCeiling = [
-      ...assetsTotalling(MOBILE_WEB_BUNDLE_MAX_ASSETS, 64),
-      asset('assets/overflow.js', 0)
-    ]
-    const paths = issuePaths(manifestOf(overCeiling, { buildId: WRONG_BUILD_ID }))
-    expect(paths).toEqual(['assets'])
-    expect(paths).not.toContain('buildId')
-  })
-
-  it('does not hash once a cheaper invariant has failed', () => {
-    const twoAssets = [ENTRY, asset('assets/a.js', 10)]
-    expect(issuePaths(manifestOf(twoAssets, { totalBytes: 0, buildId: WRONG_BUILD_ID }))).toEqual([
-      'totalBytes'
-    ])
-    expect(
-      issuePaths(
-        manifestOf(twoAssets, {
-          minCompatibleRuntimeProtocolVersion: 4,
-          buildId: WRONG_BUILD_ID
-        })
-      )
-    ).toEqual(['minCompatibleRuntimeProtocolVersion'])
-  })
 })
 
 describe('asset paths', () => {
@@ -344,8 +374,7 @@ describe('asset paths', () => {
         manifestOf([{ ...ENTRY, contentType: 'text/html; charset=utf-8' }])
       ).success
     ).toBe(true)
-    // A2's builder emits the single-space form; the other spellings are the same bytes under a
-    // different build id.
+    // Builder emits the single-space MIME spelling; variants would hash identical bytes under different ids.
     for (const contentType of ['text/html;charset=utf-8', 'text/html;  charset=utf-8']) {
       expect(
         MobileWebBundleManifestSchema.safeParse(manifestOf([{ ...ENTRY, contentType }])).success

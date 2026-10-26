@@ -5,31 +5,22 @@ import {
 } from '../../../../shared/execution-host'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import { isAiVaultSyntheticSessionPath } from '../../../../shared/ai-vault-session-deletion'
+import { revealInFileManager } from '@/lib/reveal-in-file-manager'
 
-// One definition, shared with main's delete validator; re-exported here under
-// the name this module's callers already use.
 export { isAiVaultSyntheticSessionPath as isSyntheticAiVaultSessionPath }
 
 export function canUseLocalAiVaultSessionPathActions(
   executionHostId: ExecutionHostId | null | undefined
 ): boolean {
-  // Why: Electron shell open/reveal APIs only validate paths on this computer;
-  // SSH session history exposes paths that exist on the remote host instead.
+  // Electron shell APIs use this computer's paths; SSH history paths belong to the remote host.
   return normalizeExecutionHostId(executionHostId) === LOCAL_EXECUTION_HOST_ID
 }
 
-/**
- * Whether AI Vault `View Log` / `Open Log` can open this session's log inside
- * Orca as a read-only tab: a non-blank, local, single-file (non-synthetic)
- * path. Remote/runtime and synthetic identities are withheld until AI Vault has
- * a provider-owned log-resource contract.
- */
+/** Open only local single-file logs until remote/synthetic sessions have provider-owned log-resource contracts. */
 export function canOpenAiVaultSessionLogInOrca(
   session: Pick<AiVaultSession, 'filePath' | 'executionHostId' | 'logFilePath'>
 ): boolean {
-  // Why: validate whichever path Open/View Log would actually open -- for
-  // amplifier/amplifier-agent that's logFilePath (the real transcript), not
-  // filePath (the scanned metadata file used for identity/delete/cache keying).
+  // Validate the actual transcript, not the metadata identity.
   const filePath = (session.logFilePath ?? session.filePath)?.trim()
   if (!filePath) {
     return false
@@ -38,4 +29,14 @@ export function canOpenAiVaultSessionLogInOrca(
     return false
   }
   return !isAiVaultSyntheticSessionPath(filePath)
+}
+
+/** Reveals a session's log or cwd in the OS file manager, judged by the session's own host. */
+export async function revealAiVaultSessionPath(
+  session: Pick<AiVaultSession, 'executionHostId'>,
+  path: string | null
+): Promise<void> {
+  if (path) {
+    await revealInFileManager(path, session.executionHostId)
+  }
 }

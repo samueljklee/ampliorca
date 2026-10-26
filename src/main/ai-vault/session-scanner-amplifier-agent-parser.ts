@@ -2,12 +2,8 @@ import { basename, dirname, join } from 'node:path'
 import type { AiVaultSession } from '../../shared/ai-vault-types'
 import { wslGatedReadFile } from '../native-chat/wsl-transcript-fs-access'
 import { WslTranscriptFsError } from '../native-chat/wsl-transcript-fs-gate'
-import {
-  addPreviewContent,
-  createAccumulator,
-  finalizeSession,
-  updateTimeline
-} from './session-scanner-accumulator'
+import { createAccumulator, finalizeSession, updateTimeline } from './session-scanner-accumulator'
+import { addSessionContent } from './session-scanner-messages'
 import type { FileWithMtime, SessionAccumulator } from './session-scanner-types'
 import type { TranscriptMessageSink } from './session-transcript-consumers'
 import {
@@ -17,26 +13,9 @@ import {
   normalizeTitleText
 } from './session-scanner-values'
 
-// amplifier-agent's on-disk layout: $AMPLIFIER_AGENT_HOME/state/workspaces/<workspace>/
-// sessions/<id>/ -- same transcript.jsonl + context-intelligence/ shape as amplifier,
-// EXCEPT its own top-level metadata.json is sparse crash-recovery state
-// (observed: literally `{"last_turn": "complete"}`, confirmed on both a fresh probe
-// session and a real 20k-line production one -- not an edge case). The identity
-// fields (session_id, working_dir, started_at) live one level down, in the same
-// context-intelligence/metadata.json format amplifier also writes. So unlike
-// amplifier's parser, THIS one's anchor/candidate file is the nested one on
-// purpose: `file.path` here is `.../sessions/<id>/context-intelligence/metadata.json`,
-// and the sibling transcript.jsonl lives one level up, in the session dir itself.
-//
-// Sub-agent (delegate()) sessions share the same shape but their <id> directory is
-// prefixed `0000000000000000-`; excluded at discovery time in
-// session-scanner-agent-sources.ts, same rationale as amplifier's and Claude's own
-// pruned Task-subagent transcripts.
-
 export function amplifierAgentTranscriptPathForContextIntelligenceMetadata(
   contextIntelligenceMetadataPath: string
 ): string {
-  // .../sessions/<id>/context-intelligence/metadata.json -> .../sessions/<id>/transcript.jsonl
   return join(dirname(dirname(contextIntelligenceMetadataPath)), 'transcript.jsonl')
 }
 
@@ -54,8 +33,7 @@ export async function parseAmplifierAgentSessionFile(
       'scan'
     )
   } catch (error) {
-    // A session that has not completed a turn yet may have no transcript; a WSL
-    // gate refusal must stay visible.
+    // Only a missing transcript is a valid empty session; WSL refusals remain visible.
     if (error instanceof WslTranscriptFsError || !isMissingSessionPathError(error)) {
       throw error
     }
@@ -88,8 +66,7 @@ export function parseAmplifierAgentSessionContent(
   if (!metadata) {
     return null
   }
-  // file.path is .../sessions/<id>/context-intelligence/metadata.json; the session
-  // id directory is two levels up.
+  // Identity is anchored one level below the session directory.
   const sessionId = extractString(metadata.session_id) ?? basename(dirname(dirname(file.path)))
   const accumulator = createAccumulator({
     agent: 'amplifier-agent',
@@ -101,9 +78,6 @@ export function parseAmplifierAgentSessionContent(
   updateTimeline(accumulator, metadata.started_at)
 
   if (transcriptContent) {
-    // Why: filePath (above) is context-intelligence/metadata.json -- needed for
-    // identity/cache keying -- but the actual conversation a human would want
-    // to read (View Log) is the session dir's own transcript.jsonl.
     accumulator.logFilePath = amplifierAgentTranscriptPathForContextIntelligenceMetadata(file.path)
     for (const line of transcriptContent.split('\n')) {
       if (!line.trim()) {
@@ -127,10 +101,7 @@ function consumeAmplifierAgentTranscriptLine(
   if (role !== 'user' && role !== 'assistant') {
     return
   }
-  // Why: the first turn's prompt is prefixed with an injected system-reminder
-  // wrapper recorded as its own 'user' line, marked metadata.ephemeral -- skip it
-  // so it never becomes the fallback title or the first preview line instead of
-  // what was actually typed.
+  // Injected ephemeral reminders are not user prompts or conversation turns.
   const recordMetadata = asRecord(record.metadata)
   if (recordMetadata?.ephemeral === true) {
     return
@@ -139,7 +110,7 @@ function consumeAmplifierAgentTranscriptLine(
   if (role === 'user' && !accumulator.fallbackTitle) {
     accumulator.fallbackTitle = normalizeTitleText(extractContentText(record.content) ?? '')
   }
-  addPreviewContent(accumulator, role, record.content, recordMetadata?.timestamp)
+  addSessionContent(accumulator, role, record.content, recordMetadata?.timestamp)
 }
 
 function parseJsonRecord(content: string): Record<string, unknown> | null {

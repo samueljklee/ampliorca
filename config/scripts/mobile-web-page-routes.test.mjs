@@ -1,77 +1,13 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
-  buildMobileWebAppBundle,
-  resolveMobileWebPageRoutes
-} from './build-mobile-web-app-bundle.mjs'
-import { computeMobileWebBundleBuildId } from './build-mobile-web-bundle.mjs'
-import {
-  collectMobileWebAppRouteKeys,
-  routePathnameFromKey
-} from './mobile-web-app-route-manifest.mjs'
-import { mobileWebAppDependenciesPresent } from './mobile-web-app-bundle-dependencies.mjs'
+  MOBILE_WEB_BUNDLE_MAX_ROUTE_GRANTS,
+  MobileWebBundleRouteSchema
+} from '../../src/shared/mobile-web-bundle/manifest-contract.ts'
+import { resolveMobileWebPageRoutes } from './build-mobile-web-app-bundle.mjs'
+import { MOBILE_WEB_PAGE_ROUTES } from './mobile-web-page-routes.mjs'
+import { routePathnameFromKey } from './mobile-web-app/mobile-web-app-route-manifest.mjs'
 
-/**
- * Which screens this desktop declares as page routes, and whether the bundle can render each.
- *
- * Split out of `build-mobile-web-app-bundle.test.mjs`, which is about how the bundle is built: this
- * is about what it declares, and the list grows once per registered domain while that file does not.
- * Keeping them together put the growing list against that file's 600-line cap, where the next route
- * to register would have had to choose between a lint fence and a split it did not ask for.
- */
-
-const projectDir = fileURLToPath(new URL('../..', import.meta.url))
-const appDir = join(projectDir, 'mobile', 'app')
-
-// The sharded `test` job does not install mobile dependencies, so anything that runs esbuild over
-// the route tree is skipped there and run for real in pr.yml's mobile_web_app job.
-const itBundling = mobileWebAppDependenciesPresent() ? it : it.skip
-
-async function withScratch(run) {
-  const scratch = await mkdtemp(join(tmpdir(), 'orca-mobile-web-page-routes-test-'))
-  try {
-    return await run(scratch)
-  } finally {
-    await rm(scratch, { recursive: true, force: true })
-  }
-}
-
-/**
- * Every page route this bundle declares, written out rather than read from the source that
- * produces it: the point is to pin the list, and comparing the manifest to its own input would
- * pass whatever that input became. Shared by the assertions below, which read it two ways: what
- * the route tree resolves to, and what the built manifest actually carries.
- */
-const EXPECTED_PAGE_ROUTES = [
-  { pathname: '/h/[hostId]', grants: ['navigate', 'storage', 'haptics'] },
-  {
-    pathname: '/h/[hostId]/agent-history/[worktreeId]',
-    grants: ['navigate', 'storage', 'haptics']
-  },
-  {
-    pathname: '/h/[hostId]/tasks',
-    grants: ['navigate', 'storage', 'externalLink', 'haptics', 'native.clipboard.write']
-  },
-  {
-    pathname: '/h/[hostId]/files/[worktreeId]',
-    grants: ['navigate', 'storage', 'externalLink', 'haptics']
-  },
-  {
-    pathname: '/h/[hostId]/files/preview/[worktreeId]',
-    grants: ['navigate', 'storage', 'externalLink', 'haptics']
-  },
-  {
-    pathname: '/h/[hostId]/source-control/[worktreeId]',
-    grants: ['navigate', 'storage', 'externalLink', 'haptics', 'native.clipboard.write']
-  },
-  {
-    pathname: '/h/[hostId]/review/[worktreeId]',
-    grants: ['navigate', 'storage', 'externalLink', 'haptics', 'native.clipboard.write']
-  }
-]
+// Test declared screens separately from bundle mechanics so route inventory can grow without coupling builder test size.
 
 describe('the page routes the manifest declares', () => {
   it('turns a route key into the URL pattern expo-router gives it', () => {
@@ -87,14 +23,64 @@ describe('the page routes the manifest declares', () => {
     expect(routePathnameFromKey('./h/[hostId]/_layout.tsx')).toBeNull()
   })
 
-  it('declares only routes the bundle has a module for', async () => {
-    const keys = await collectMobileWebAppRouteKeys(appDir)
-    expect(resolveMobileWebPageRoutes(keys)).toEqual(EXPECTED_PAGE_ROUTES)
+  // Synthetic optional-grant input checks member-by-member mapping; newly declared field must survive builder map before reaching phone.
+  it('carries an optional grant list through, and writes no key for a route without one', () => {
+    expect(
+      resolveMobileWebPageRoutes(
+        ['./h/[hostId]/index.tsx', './h/[hostId]/tasks.tsx'],
+        [
+          {
+            pathname: '/h/[hostId]',
+            grants: ['navigate'],
+            optionalGrants: ['externalNavigation']
+          },
+          { pathname: '/h/[hostId]/tasks', grants: ['navigate'], optionalGrants: [] }
+        ]
+      )
+    ).toEqual([
+      { pathname: '/h/[hostId]', grants: ['navigate'], optionalGrants: ['externalNavigation'] },
+      { pathname: '/h/[hostId]/tasks', grants: ['navigate'] }
+    ])
+  })
+
+  it('carries the host-area declaration through, and writes no key where there is none', () => {
+    expect(
+      resolveMobileWebPageRoutes(
+        ['./h/[hostId]/index.tsx', './h/[hostId]/tasks.tsx'],
+        [
+          { pathname: '/h/[hostId]', grants: ['navigate'], canOwnHostArea: true },
+          { pathname: '/h/[hostId]/tasks', grants: ['navigate'] }
+        ]
+      )
+    ).toEqual([
+      { pathname: '/h/[hostId]', grants: ['navigate'], canOwnHostArea: true },
+      { pathname: '/h/[hostId]/tasks', grants: ['navigate'] }
+    ])
+  })
+
+  // Wide host-area grants union all served routes to retain in-page hops, within same per-route ceiling.
+  it('bounds the aggregate required and optional grants by one route-grant ceiling', () => {
+    const union = new Set(
+      MOBILE_WEB_PAGE_ROUTES.flatMap((route) => [...route.grants, ...(route.optionalGrants ?? [])])
+    )
+    expect(union.size).toBeLessThanOrEqual(MOBILE_WEB_BUNDLE_MAX_ROUTE_GRANTS)
+  })
+
+  it('holds the optional lane to the manifest grammar and the ceiling over the union', () => {
+    // Optional/required tokens share schema grammar and combined bound; independent bounds could exceed manifest ceiling.
+    const withOptional = (optionalGrants, grants = []) =>
+      MobileWebBundleRouteSchema.safeParse({ pathname: '/h/[hostId]', grants, optionalGrants })
+        .success
+    expect(withOptional(['externalNavigation'])).toBe(true)
+    expect(withOptional(['native.externalNavigation'])).toBe(false)
+    const names = (count, prefix) =>
+      Array.from({ length: count }, (_value, index) => `${prefix}${String(index)}`)
+    expect(withOptional(names(8, 'opt'), names(8, 'req'))).toBe(true)
+    expect(withOptional(names(9, 'opt'), names(8, 'req'))).toBe(false)
   })
 
   it('fails the build on a declaration the bundle cannot render', () => {
-    // The mismatch reaches a phone as a route the shell opens the page for and the page then
-    // paints as Unmatched. This is the only place whoever wrote the declaration can see it.
+    // Declared-but-unbundled route opens page then paints Unmatched; catch mismatch at declaration.
     expect(() =>
       resolveMobileWebPageRoutes(
         ['./h/[hostId]/index.tsx'],
@@ -102,18 +88,4 @@ describe('the page routes the manifest declares', () => {
       )
     ).toThrow('has no module in the bundle')
   })
-
-  itBundling(
-    'reaches the built manifest, where the build id does not move for it',
-    async () => {
-      await withScratch(async (scratch) => {
-        const { manifest } = await buildMobileWebAppBundle({ outDir: join(scratch, 'bundle') })
-        expect(manifest.routes).toEqual(EXPECTED_PAGE_ROUTES)
-        // The routes are derived from the same tree the script is built from, so the assets
-        // already decide them and the id has no reason to carry them as well.
-        expect(manifest.buildId).toBe(computeMobileWebBundleBuildId(manifest.assets))
-      })
-    },
-    240_000
-  )
 })

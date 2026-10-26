@@ -1,30 +1,27 @@
-/**
- * Which of the app's stored keys the page may read and write, and how much of each.
- *
- * AsyncStorage's web build is `window.localStorage`, which the page does not have: Android turns
- * DOM storage off and on iOS the origin host is the session id, so anything written there is empty
- * again on the next remount. A pin that silently forgets itself is worse than one that cannot be
- * set, so the page's store is the app's, reached over the `storage` grant.
- *
- * An allowlist and not a passthrough. Everything the app keeps under `orca:` is in one namespace —
- * push registrations, the hybrid shell flag itself — and a page that could write any of them could
- * turn the feature on for a build that never offered it. A prefix is listed only where the key
- * carries an id the desktop chooses; the rest are exact.
- */
+// Bridge into native storage: Android disables localStorage and iOS origins change per session. Explicit keys prevent pages rewriting pairings/push registrations in the same orca: namespace.
 export const PAGE_STORAGE_EXACT_KEYS = [
-  /** The repo the New Workspace drawer opens on. */
-  'orca:last-visited-worktree'
+  'orca:last-visited-worktree',
+  'orca:hostSidebarWidth',
+  'orca:hostDockWidth',
+  'orca:terminal-accessory-layout',
+  'orca:custom-accessory-keys',
+  'orca:defaultSessionView',
+  /** Legacy journal access for embedded pages served by older hosts. */
+  'orca:mobileStructuredSendOperations:v1',
+  'orca:terminalTextScale',
+  'orca:terminalAutocompleteEnabled',
+  'orca:terminalLinkOpenMode'
 ] as const
 
 export const PAGE_STORAGE_KEY_PREFIXES = [
-  /** `orca:pins:<hostId>`: the pinned worktrees of the host whose list the page is showing. */
-  'orca:pins:'
+  'orca:pins:',
+  'orca:nativeChatTabs:',
+  'orca:terminalLiveInputDisabled:',
+  'orca:terminalDrafts:'
 ] as const
 
-/** Long enough for a host's pinned ids, and far short of what a quota refuses. */
 export const PAGE_STORAGE_MAX_VALUE_CHARS = 16 * 1024
 export const PAGE_STORAGE_MAX_KEY_CHARS = 256
-/** Every allowlisted key at once, which is what `init` carries. */
 export const PAGE_STORAGE_MAX_ENTRIES = 32
 
 export function isPageStorageKey(key: string): boolean {
@@ -37,18 +34,115 @@ export function isPageStorageKey(key: string): boolean {
   )
 }
 
-/** The keys the shell reads out of the app's store and hands the page in `init`. */
-export function pageStorageKeysForHost(hostId: string): string[] {
-  return [...PAGE_STORAGE_EXACT_KEYS, `orca:pins:${hostId}`]
+// Derive workspace scope from the pathname both endpoints receive; only session routes currently own workspace keys.
+export function pageRouteWorkspace(
+  pathname: string
+): { hostId: string; worktreeId: string } | null {
+  const segments = pathname.split('/')
+  if (segments.length !== 5 || segments[0] !== '' || segments[1] !== 'h') {
+    return null
+  }
+  if (segments[3] !== 'session') {
+    return null
+  }
+  try {
+    const hostId = decodeURIComponent(segments[2] ?? '')
+    const worktreeId = decodeURIComponent(segments[4] ?? '')
+    return hostId === '' || worktreeId === '' ? null : { hostId, worktreeId }
+  } catch {
+    // Malformed escapes must yield no workspace key, never a key constructed from invalid route text.
+    return null
+  }
 }
 
-/**
- * The allowlist narrowed to one host, which is the one every write is actually held to.
- *
- * `isPageStorageKey` answers for the shape, so `orca:pins:<any host>` passes it; a page opened for
- * one host could therefore rewrite another's pinned list, which is not a key it was ever handed.
- * What the page may write is exactly what it was given, so this is that same list.
- */
-export function isPageStorageKeyForHost(key: string, hostId: string): boolean {
-  return key.length <= PAGE_STORAGE_MAX_KEY_CHARS && pageStorageKeysForHost(hostId).includes(key)
+const WORKSPACE_KEY_PREFIXES = [
+  'orca:nativeChatTabs:',
+  'orca:terminalLiveInputDisabled:',
+  'orca:terminalDrafts:'
+] as const
+
+function workspaceScopedKey(prefix: string, hostId: string, worktreeId: string): string {
+  return `${prefix}${encodeURIComponent(hostId)}:${encodeURIComponent(worktreeId)}`
+}
+
+// Host-area pages may access any workspace here; encoded host ids contain no colon, preventing cross-host prefix matches.
+export function isHostWorkspaceStorageKey(key: string, hostId: string): boolean {
+  const scope = `${encodeURIComponent(hostId)}:`
+  return (
+    isPageStorageKey(key) &&
+    WORKSPACE_KEY_PREFIXES.some(
+      (prefix) => key.startsWith(prefix + scope) && key.length > prefix.length + scope.length
+    )
+  )
+}
+
+// Filter generated keys through the page’s schema bounds: an overlong workspace id must not reject the whole init frame.
+export function pageStorageKeysForRoute(hostId: string, routePathname: string): string[] {
+  const workspace = pageRouteWorkspace(routePathname)
+  const scoped =
+    workspace === null || workspace.hostId !== hostId
+      ? []
+      : WORKSPACE_KEY_PREFIXES.map((prefix) =>
+          workspaceScopedKey(prefix, hostId, workspace.worktreeId)
+        )
+  return [...PAGE_STORAGE_EXACT_KEYS, `orca:pins:${hostId}`, ...scoped].filter(isPageStorageKey)
+}
+
+// Narrow key shapes to this host/workspace; host-area pages additionally reach this host’s other workspaces.
+export function isPageStorageKeyForRoute(
+  key: string,
+  hostId: string,
+  routePathname: string,
+  hostArea = false
+): boolean {
+  return (
+    key.length <= PAGE_STORAGE_MAX_KEY_CHARS &&
+    (pageStorageKeysForRoute(hostId, routePathname).includes(key) ||
+      (hostArea && isHostWorkspaceStorageKey(key, hostId)))
+  )
+}
+
+// Refuse writes to oversized values omitted from init, including from old pages that ignore storageOversize; otherwise default data could overwrite the native journal (ruling 33.6).
+export function pageMayWriteStorageKey(
+  key: string,
+  hostId: string,
+  route: { pathname: string } | null,
+  held: PageStorageForInit,
+  hostArea = false
+): boolean {
+  return (
+    route !== null &&
+    isPageStorageKeyForRoute(key, hostId, route.pathname, hostArea) &&
+    !held.storageOversize.includes(key)
+  )
+}
+
+export type PageStorageForInit = {
+  storage: Readonly<Record<string, string>>
+  storageOversize: readonly string[]
+}
+
+// Omit oversized values so one large journal cannot reject all of init; report value-cap drops as unwritable to prevent empty page state overwriting native operation ids.
+// Entry-cap drops remain writable because their values fit; only missing oversized contents make replacement destructive.
+export function pageStorageEntriesForInit(held: Readonly<Record<string, string>>): {
+  entries: Record<string, string>
+  dropped: string[]
+  oversize: string[]
+} {
+  const entries: Record<string, string> = {}
+  const dropped: string[] = []
+  const oversize: string[] = []
+  for (const [key, value] of Object.entries(held)) {
+    if (value.length > PAGE_STORAGE_MAX_VALUE_CHARS) {
+      dropped.push(key)
+      oversize.push(key)
+      continue
+    }
+    if (Object.keys(entries).length >= PAGE_STORAGE_MAX_ENTRIES) {
+      dropped.push(key)
+      continue
+    }
+    entries[key] = value
+  }
+  return { entries, dropped, oversize }
 }

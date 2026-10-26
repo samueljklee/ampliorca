@@ -67,8 +67,7 @@ export function handleAgentCompletionInspectionResult(args: {
   }
   if (remote) {
     const evidence = result.foregroundProcessEvidence
-    // Remote identity is host-authoritative. Compatibility names and unverifiable observations
-    // never mutate routing state or synthesize process exit.
+    // Only authoritative remote evidence may change routing or synthesize exit; legacy names and unverifiable reads cannot.
     const expectedIncarnationId = options.getExpectedIncarnationId?.() ?? null
     const ptyId = options.getPtyId()
     const bindingKey = `${ptyId ?? ''}\0${expectedIncarnationId ?? ''}`
@@ -101,7 +100,6 @@ export function handleAgentCompletionInspectionResult(args: {
       const exited = state.lastForegroundAgent
       if (exited && state.hasAgentRunEvidence) {
         if (options.shouldSuppressConfirmedProcessExitCompletion?.(exited) !== true) {
-          options.onConfirmedProcessExit?.(exited)
           dispatchCompletion('process-exit', exited.processName, {
             terminalIdleConfirmed: true,
             completionIdentity: {
@@ -114,6 +112,9 @@ export function handleAgentCompletionInspectionResult(args: {
       }
       state.lastForegroundAgent = null
       clearAgentRunEvidence()
+      if (exited) {
+        options.onForegroundAgentExited?.(exited)
+      }
       return false
     }
     if (admitted.verdict !== 'live') {
@@ -169,7 +170,6 @@ export function handleAgentCompletionInspectionResult(args: {
     const exited = state.lastForegroundAgent
     state.pendingProcessExit = null
     if (options.shouldSuppressConfirmedProcessExitCompletion?.(exited) !== true) {
-      options.onConfirmedProcessExit?.(exited)
       const replayIdentityBeforeExit = identityScope.getLast()
       const committed = dispatchCompletion('process-exit', exited.processName, {
         terminalIdleConfirmed: true,
@@ -190,6 +190,7 @@ export function handleAgentCompletionInspectionResult(args: {
     }
     state.lastForegroundAgent = null
     clearAgentRunEvidence()
+    options.onForegroundAgentExited?.(exited)
   } else {
     state.lastForegroundAgent = null
     clearAgentRunEvidence()

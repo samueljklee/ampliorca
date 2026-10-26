@@ -60,7 +60,7 @@ export function applyAmplifierAgentSubagentEnd(
 export function settleAmplifierAgentRosterForPane(
   state: HookListenerState,
   paneKey: string,
-  options: { failed: boolean }
+  options: { failed: boolean; delegateIds?: ReadonlySet<string> }
 ): boolean {
   const roster = state.amplifierAgentSubagentRosterByPaneKey.get(paneKey)
   if (!roster) {
@@ -68,7 +68,7 @@ export function settleAmplifierAgentRosterForPane(
   }
   let changed = false
   for (const [id, entry] of roster) {
-    if (entry.state !== 'working') {
+    if (entry.state !== 'working' || (options.delegateIds && !options.delegateIds.has(id))) {
       continue
     }
     roster.set(id, { ...entry, state: options.failed ? 'unverifiable' : 'idle' })

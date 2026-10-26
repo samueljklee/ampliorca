@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   dispatchStructuredAgentSessionComposerCommand,
   isStructuredAgentSessionComposerCommand,
+  structuredAgentSessionGoalObjective,
+  structuredSessionSlashCommands,
   structuredSlashCommands
 } from './structured-agent-session-composer'
 
@@ -15,10 +17,7 @@ describe('structuredSlashCommands', () => {
   }
   const REFUSAL = /is not available in chat sessions/
 
-  // The composer menu and the dispatcher read the same policy. When they disagreed,
-  // a Claude session was offered Codex-only tokens that missed the command guard
-  // and reached the model as literal prompt text instead of erroring. A row is
-  // honored either way now: the host answers it, or it passes through to the agent.
+  // Menu and dispatcher must share policy or Codex-only tokens can reach Claude as literal prose instead of being handled.
   it.each(['codex', 'claude'] as const)(
     'offers %s only commands the host answers or the agent runs',
     async (agent) => {
@@ -34,8 +33,7 @@ describe('structuredSlashCommands', () => {
     }
   )
 
-  // Codex reports no catalog of its own, so this fallback is its whole `/` menu —
-  // without the row, a command that now works is impossible to discover.
+  // Codex reports no catalog; fallback rows make its working text-driven commands discoverable.
   it('offers Codex the /goal the model acts on, described from the catalog', () => {
     const offered = structuredSlashCommands(['clear', 'compact'], 'codex')
     expect(offered.map((command) => command.name)).toEqual([
@@ -48,7 +46,6 @@ describe('structuredSlashCommands', () => {
     expect(offered.find((command) => command.name === 'goal')?.description).toBe(
       'Set or view the goal'
     )
-    // Picking it must reach the model, not the host's refusal.
     expect(isStructuredAgentSessionComposerCommand('/goal', 'codex')).toBe(false)
   })
 
@@ -79,9 +76,43 @@ describe('structuredSlashCommands', () => {
   })
 })
 
+describe('structuredSessionSlashCommands', () => {
+  const names = (commands: readonly { name: string }[]) => commands.map(({ name }) => name)
+
+  // Reported Pi/ACP commands must not hide the host-owned commands.
+  it("keeps the host's commands first once the session reports its own", () => {
+    const reported = [
+      { name: 'llama', kind: 'command' as const },
+      { name: 'mcp', kind: 'command' as const },
+      { name: 'skill:caveman', kind: 'skill' as const }
+    ]
+    expect(names(structuredSessionSlashCommands('pi', ['clear', 'compact'], undefined))).toEqual(
+      names(structuredSlashCommands(['clear', 'compact'], 'pi'))
+    )
+    expect(names(structuredSessionSlashCommands('pi', ['clear', 'compact'], reported))).toEqual([
+      'model',
+      'effort',
+      'clear',
+      'compact',
+      'llama',
+      'mcp'
+    ])
+  })
+
+  it("offers the host's row in place of an agent command of the same name", () => {
+    const offered = structuredSessionSlashCommands(
+      'opencode',
+      ['clear', 'compact'],
+      [{ name: 'compact', kind: 'command', description: 'compact the session' }]
+    )
+    expect(offered.filter(({ name }) => name === 'compact')).toEqual([
+      { name: 'compact', description: 'Compact conversation context' }
+    ])
+  })
+})
+
 describe('isStructuredAgentSessionComposerCommand', () => {
-  // The menu hides TUI-only commands, but the guard must still claim a typed one
-  // so it is answered here instead of sent to the model as prose.
+  // Claim typed TUI-only commands even when hidden from the menu, so they do not reach the model as prose.
   it.each([
     ['codex', 'vim'],
     ['codex', 'clear'],
@@ -151,8 +182,7 @@ describe('agent-implemented commands pass through to the agent', () => {
   }
   const PASSED_THROUGH = { handled: false, accepted: false, error: null }
 
-  // Claude's harness runs a slash command it finds in the message text, so
-  // claiming these answered "not available" for commands that do work.
+  // Claude’s harness handles these from message text; claiming them would wrongly refuse working commands.
   it.each(['init', 'review', 'help'] as const)(
     'sends /%s on to the Claude harness instead of refusing it',
     async (name) => {
@@ -181,8 +211,7 @@ describe('agent-implemented commands pass through to the agent', () => {
     }
   )
 
-  // Codex's app-server has no slash parser, but the model owns goal tools and
-  // creates a real goal from `/goal <objective>` arriving as prose.
+  // Codex app-server lacks a slash parser, but its model handles /goal through goal tools.
   it('passes /goal through on Codex, arguments and all', async () => {
     expect(isStructuredAgentSessionComposerCommand('/goal', 'codex')).toBe(false)
     expect(
@@ -191,6 +220,48 @@ describe('agent-implemented commands pass through to the agent', () => {
         agent: 'codex'
       })
     ).toEqual(PASSED_THROUGH)
+  })
+
+  it('sets the goal through the host where the host can, instead of sending prose', async () => {
+    const setThreadGoalObjective = vi.fn(async () => true)
+    expect(
+      await dispatchStructuredAgentSessionComposerCommand('/goal  ship the fix ', {
+        ...controller,
+        agent: 'codex',
+        setThreadGoalObjective
+      })
+    ).toEqual({ handled: true, accepted: true, error: null })
+    expect(setThreadGoalObjective).toHaveBeenCalledWith('ship the fix')
+
+    // A refused goal keeps the draft; the session error surface explains why.
+    setThreadGoalObjective.mockResolvedValueOnce(false)
+    expect(
+      await dispatchStructuredAgentSessionComposerCommand('/goal ship the fix', {
+        ...controller,
+        agent: 'codex',
+        setThreadGoalObjective
+      })
+    ).toEqual({ handled: true, accepted: false, error: null })
+  })
+
+  it('reads the objective a goal-mode draft names, with or without a typed /goal', () => {
+    expect(structuredAgentSessionGoalObjective('  Ship the parser  ')).toBe('Ship the parser')
+    expect(structuredAgentSessionGoalObjective('/goal  Ship the parser ')).toBe('Ship the parser')
+    expect(structuredAgentSessionGoalObjective('/GOAL')).toBe('')
+    // Goal mode treats non-goal commands as objective text.
+    expect(structuredAgentSessionGoalObjective('/model gpt-5')).toBe('/model gpt-5')
+  })
+
+  it('asks for an objective when a goal-capable host gets a bare /goal', async () => {
+    const setThreadGoalObjective = vi.fn(async () => true)
+    expect(
+      await dispatchStructuredAgentSessionComposerCommand('/goal', {
+        ...controller,
+        agent: 'codex',
+        setThreadGoalObjective
+      })
+    ).toEqual({ handled: true, accepted: false, error: 'Describe the goal after /goal.' })
+    expect(setThreadGoalObjective).not.toHaveBeenCalled()
   })
 
   it('keeps refusing a Codex command the model cannot carry out', async () => {

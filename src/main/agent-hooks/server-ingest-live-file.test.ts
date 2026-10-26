@@ -40,6 +40,40 @@ function amplifierRecord(overrides: Partial<SpoolRecord> = {}): SpoolRecord {
 }
 
 describe('AgentHookServer ingestLiveFileRecord', () => {
+  it.each([
+    ['amplifier', 'turn_start', 'agent_end', 'turn_end'],
+    ['amplifier-agent', 'prompt:submit', 'delegate:agent_completed', 'orchestrator:complete']
+  ])('identifies only the %s parent completion as a turn end', (source, start, childEnd, end) => {
+    const server = new AgentHookServer()
+    server.ingestLiveFileRecord(
+      amplifierRecord({
+        source,
+        hookEventName: start,
+        payload: { prompt: 'Fix the bug' }
+      })
+    )
+    server.ingestLiveFileRecord(amplifierRecord({ source, hookEventName: childEnd }))
+    expect(server.getStatusSnapshot()[0]).not.toHaveProperty('turnEndedAt')
+    server.ingestLiveFileRecord(amplifierRecord({ source, hookEventName: end }))
+    expect(server.getStatusSnapshot()[0]).toMatchObject({
+      state: 'done',
+      turnEndedAt: expect.any(Number),
+      turnEndDisposition: 'identified'
+    })
+    expect(server.getStatusChangeSnapshot()[0]?.observedInCurrentRuntime).toBe(true)
+    server.stop()
+  })
+
+  it('rejects disabled ingress and revoked tailer generations', () => {
+    const server = new AgentHookServer()
+    server.ingestLiveFileRecord(amplifierRecord(), () => false)
+    expect(server.getStatusSnapshot()).toEqual([])
+    server.setStatusHooksEnabled(false)
+    server.ingestLiveFileRecord(amplifierRecord())
+    expect(server.getStatusSnapshot()).toEqual([])
+    server.stop()
+  })
+
   it('applies a turn_start as a working status for the amplifier source', () => {
     const server = new AgentHookServer()
     server.ingestLiveFileRecord(amplifierRecord({ hookEventName: 'turn_start' }))

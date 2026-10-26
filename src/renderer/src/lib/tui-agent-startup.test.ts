@@ -13,6 +13,46 @@ const emptyLaunchConfig = (agentCommand: string) => ({
 })
 
 describe('buildAgentStartupPlan', () => {
+  it.each(['darwin', 'linux', 'win32'] as const)(
+    'keeps flag-shaped Amplifier prompts behind -- in chat mode on %s',
+    (platform) => {
+      expect(
+        buildAgentStartupPlan({
+          agent: 'amplifier',
+          prompt: '--version',
+          cmdOverrides: {},
+          platform
+        })
+      ).toEqual({
+        agent: 'amplifier',
+        launchCommand: "amplifier run --mode chat -- '--version'",
+        expectedProcess: 'amplifier',
+        followupPrompt: null,
+        launchConfig: emptyLaunchConfig('amplifier run --mode chat')
+      })
+    }
+  )
+
+  it.each(['darwin', 'linux', 'win32'] as const)(
+    'launches the persistent Amplifier Agent wrapper before delivering the prompt on %s',
+    (platform) => {
+      expect(
+        buildAgentStartupPlan({
+          agent: 'amplifier-agent',
+          prompt: 'Review the parser\nAdd regression tests',
+          cmdOverrides: {},
+          platform
+        })
+      ).toEqual({
+        agent: 'amplifier-agent',
+        launchCommand: 'amplifier-agent-repl',
+        expectedProcess: 'amplifier-agent-repl',
+        followupPrompt: 'Review the parser\nAdd regression tests',
+        launchConfig: emptyLaunchConfig('amplifier-agent-repl')
+      })
+    }
+  )
+
   it('passes Claude prompts as a positional interactive argument', () => {
     expect(
       buildAgentStartupPlan({
@@ -27,6 +67,24 @@ describe('buildAgentStartupPlan', () => {
       expectedProcess: 'claude',
       followupPrompt: null,
       launchConfig: emptyLaunchConfig('claude')
+    })
+  })
+
+  // Native chat ignores a custom launch command; a terminal launch must still run it.
+  it('starts a terminal Claude with its custom launch command', () => {
+    expect(
+      buildAgentStartupPlan({
+        agent: 'claude',
+        prompt: 'Fix the bug',
+        cmdOverrides: { claude: 'claude-wrapper' },
+        platform: 'darwin'
+      })
+    ).toEqual({
+      agent: 'claude',
+      launchCommand: "claude-wrapper 'Fix the bug'",
+      expectedProcess: 'claude',
+      followupPrompt: null,
+      launchConfig: emptyLaunchConfig('claude-wrapper')
     })
   })
 
@@ -144,6 +202,26 @@ describe('buildAgentStartupPlan', () => {
     ).toBe("traecli -- 'help me name this config'")
   })
 
+  it('delivers the Muse prompt after its composer is ready', () => {
+    expect(
+      buildAgentStartupPlan({
+        agent: 'muse',
+        prompt: 'Summarize the failing tests',
+        cmdOverrides: {},
+        platform: 'linux'
+      })
+    ).toEqual({
+      agent: 'muse',
+      launchCommand: 'muse --trust-workspace',
+      expectedProcess: 'muse',
+      followupPrompt: 'Summarize the failing tests',
+      launchConfig: {
+        ...emptyLaunchConfig('muse'),
+        agentCommand: 'muse --trust-workspace'
+      }
+    })
+  })
+
   it('passes the prompt to Prime Agent as a positional argv behind a `--` separator', () => {
     expect(
       buildAgentStartupPlan({
@@ -241,7 +319,7 @@ describe('buildAgentStartupPlan', () => {
     })
   })
 
-  it('launches Devin first and injects the prompt after startup', () => {
+  it('launches Devin with the prompt on argv behind a -- separator', () => {
     expect(
       buildAgentStartupPlan({
         agent: 'devin',
@@ -252,9 +330,10 @@ describe('buildAgentStartupPlan', () => {
       })
     ).toEqual({
       agent: 'devin',
-      launchCommand: "devin '--permission-mode' 'bypass' '--respect-workspace-trust' 'false'",
+      launchCommand:
+        "devin '--permission-mode' 'bypass' '--respect-workspace-trust' 'false' -- 'Trace the failing test'",
       expectedProcess: 'devin',
-      followupPrompt: 'Trace the failing test',
+      followupPrompt: null,
       launchConfig: {
         agentCommand: "devin '--permission-mode' 'bypass' '--respect-workspace-trust' 'false'",
         agentArgs: '--permission-mode bypass --respect-workspace-trust false',
@@ -290,23 +369,6 @@ describe('buildAgentStartupPlan', () => {
       })
     ).toBeNull()
   })
-
-  it('uses -i flag for copilot to start an interactive session with initial prompt', () => {
-    expect(
-      buildAgentStartupPlan({
-        agent: 'copilot',
-        prompt: 'Fix the bug',
-        cmdOverrides: {},
-        platform: 'darwin'
-      })
-    ).toEqual({
-      agent: 'copilot',
-      launchCommand: "copilot -i 'Fix the bug'",
-      expectedProcess: 'copilot',
-      followupPrompt: null,
-      launchConfig: emptyLaunchConfig('copilot')
-    })
-  })
 })
 
 describe('buildAgentDraftLaunchPlan', () => {
@@ -338,11 +400,7 @@ describe('buildAgentDraftLaunchPlan', () => {
   })
 
   it('uses ORCA_PI_PREFILL env var for pi (no CLI flag exists)', () => {
-    // Why: pi has no `--prefill` flag, and bracketed-paste-after-ready races
-    // against pi's lengthy startup output. The Orca overlay installs an
-    // `orca-prefill` extension that reads ORCA_PI_PREFILL on session_start
-    // and seeds the editor. Plan plumbs the env var without polluting the
-    // shell command (no `FOO='...' pi` prefix typed into the terminal).
+    // Pi has no --prefill and paste-after-ready races startup output. Its orca-prefill extension seeds from ORCA_PI_PREFILL on session_start; pass env separately from typed shell commands.
     expect(
       buildAgentDraftLaunchPlan({
         agent: 'pi',

@@ -7,10 +7,9 @@ import {
   AppendImageUploadChunk,
   CommitImageUpload,
   SaveImageAsTempFile,
-  StartImageUpload,
-  isValidBase64
+  StartImageUpload
 } from '../../../../shared/rpc-contract/clipboard-params'
-export { CLIPBOARD_IMAGE_UPLOAD_CHUNK_BASE64_CHARS } from '../../../../shared/rpc-contract/clipboard-params'
+import { decodeClipboardImageUpload } from './clipboard-image-upload-decoding'
 export const CLIPBOARD_IMAGE_UPLOAD_MAX_CONCURRENT = 8
 const CLIPBOARD_IMAGE_UPLOAD_TTL_MS = 5 * 60 * 1000
 
@@ -89,15 +88,10 @@ function assertMobileUploadOwner(
   return clientId
 }
 
-function assertValidBase64Content(value: string): void {
-  if (!isValidBase64(value)) {
-    throw new Error('Clipboard image content must be base64')
-  }
-}
-
 export const CLIPBOARD_METHODS = [
   defineMethod({
     name: 'clipboard.saveImageAsTempFile',
+    permission: 'workspace',
     params: SaveImageAsTempFile,
     handler: async (params, ctx) => {
       const clientId = mobileClientId(ctx)
@@ -115,6 +109,7 @@ export const CLIPBOARD_METHODS = [
   }),
   defineMethod({
     name: 'clipboard.startImageUpload',
+    permission: 'workspace',
     params: StartImageUpload,
     handler: (params, ctx) => {
       pruneExpiredUploads()
@@ -136,6 +131,7 @@ export const CLIPBOARD_METHODS = [
   }),
   defineMethod({
     name: 'clipboard.appendImageUploadChunk',
+    permission: 'workspace',
     params: AppendImageUploadChunk,
     handler: (params, ctx) => {
       const upload = getUpload(params.uploadId)
@@ -155,6 +151,7 @@ export const CLIPBOARD_METHODS = [
   }),
   defineMethod({
     name: 'clipboard.commitImageUpload',
+    permission: 'workspace',
     params: CommitImageUpload,
     handler: async (params, ctx) => {
       const upload = getUpload(params.uploadId)
@@ -163,10 +160,8 @@ export const CLIPBOARD_METHODS = [
         if (upload.receivedBase64Length !== upload.expectedBase64Length) {
           throw new Error('Clipboard image upload is incomplete')
         }
-        const contentBase64 = upload.chunks.join('')
-        assertValidBase64Content(contentBase64)
         const path = await saveClipboardImageBufferAsTempFile(
-          Buffer.from(contentBase64, 'base64'),
+          decodeClipboardImageUpload(upload.chunks),
           {
             connectionId: upload.connectionId
           }
@@ -176,14 +171,14 @@ export const CLIPBOARD_METHODS = [
         }
         return path
       } finally {
-        // Why: failed SSH or filesystem commits must not leave bounded upload
-        // memory pinned until TTL cleanup.
+        // Release upload memory after failed SSH/filesystem commits rather than waiting for TTL.
         deleteUpload(params.uploadId)
       }
     }
   }),
   defineMethod({
     name: 'clipboard.abortImageUpload',
+    permission: 'workspace',
     params: AbortImageUpload,
     handler: (params, ctx) => {
       pruneExpiredUploads()

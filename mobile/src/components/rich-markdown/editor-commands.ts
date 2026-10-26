@@ -1,5 +1,10 @@
 import { emitChange, syncTaskCheckboxesDisabled } from './editor-content'
-import { restoreSelectionOrEnd, wrapSelection } from './editor-selection'
+import {
+  rememberSelection,
+  restoreRememberedSelection,
+  restoreSelectionOrEnd,
+  wrapSelection
+} from './editor-selection'
 import { editorElement } from './editor-surface'
 import { isSafeUrl } from './markdown-escaping'
 import type { MobileRichMarkdownCommand } from '../mobile-rich-markdown-editor-contract'
@@ -16,13 +21,7 @@ function exec(scope: RichMarkdownEditorScope, command: string, value?: string) {
   scope.getDocument().execCommand(command, false, value)
 }
 
-/**
- * Whether the document a command started against is still the one in front of the user.
- *
- * The generation is the host's own: it bumps it on every content replacement, so a command that
- * waited while the host replaced the markdown would otherwise act on text nobody chose, under a
- * caret that belongs to the replaced content.
- */
+// Reject command if host replaced content while URL prompt waited; generation/caret must still match user’s original target.
 function acceptsCommands(scope: RichMarkdownEditorScope, generation: number): boolean {
   return (
     !scope.stopped &&
@@ -32,36 +31,23 @@ function acceptsCommands(scope: RichMarkdownEditorScope, generation: number): bo
   )
 }
 
-/**
- * The two commands that need a URL the document does not have.
- *
- * A promise because the answer is a dialog: inside the WebView that is `window.prompt`, and on a
- * page it is a modal the host renders, which cannot answer before it has been shown. The
- * difference matters — a modal is a task boundary, so while it is open the host can stop the
- * document, make it read-only or replace its content, and the answer comes back to a document
- * that is no longer the one the user was pointing at.
- *
- * The generation is read before the wait rather than passed in, which is the same instant:
- * nothing between `runCommand`'s own read and this one yields.
- */
+// Link/Image await page URL modal; while waiting host may replace/lock/stop document, so capture generation and revalidate after answer.
+// Save caret before modal takes focus and restore after; execCommand without selection inserts nothing. Reading generation here equals runCommand’s read because no yield intervenes.
 async function insertUrl(
   scope: RichMarkdownEditorScope,
   kind: RichMarkdownUrlPromptKind,
   command: 'createLink' | 'insertImage'
 ) {
   const generation = scope.documentGeneration
+  rememberSelection(scope)
   const url = await scope.promptForUrl(kind)
   if (url && isSafeUrl(url) && acceptsCommands(scope, generation)) {
+    restoreRememberedSelection(scope)
     exec(scope, command, url)
   }
 }
 
-/**
- * Every toolbar command, by name.
- *
- * A record over the contract's union rather than a chain of comparisons, so a command added to the
- * contract fails to compile until the document answers it.
- */
+// Use record over command union so contract additions fail compile until handled.
 const COMMANDS: Record<
   MobileRichMarkdownCommand,
   (scope: RichMarkdownEditorScope) => void | Promise<void>
@@ -83,16 +69,7 @@ const COMMANDS: Record<
   image: (scope) => insertUrl(scope, 'image', 'insertImage')
 }
 
-/**
- * One toolbar command against the current selection.
- *
- * The caret is restored first because the toolbar is outside the document and pressing it took the
- * focus; the change is emitted afterwards because `execCommand` rewrites the markup without
- * raising an input event the listeners would see.
- *
- * Awaited only where a command actually waits, so the thirteen that do not stay one synchronous
- * act from the host's call to the change it produces.
- */
+// Restore caret taken by toolbar; emit change after execCommand because it raises no input event. Await only URL commands so other thirteen remain synchronous.
 export async function runCommand(
   scope: RichMarkdownEditorScope,
   command: MobileRichMarkdownCommand
@@ -105,8 +82,7 @@ export async function runCommand(
   const pending = COMMANDS[command]?.(scope)
   if (pending) {
     await pending
-    // The same question again, because the wait was the host's chance to move: a change emitted
-    // now would carry the new generation over an edit made against the old one.
+    // Recheck after wait so stale edit cannot emit under newly replaced generation.
     if (!acceptsCommands(scope, generation)) {
       return
     }

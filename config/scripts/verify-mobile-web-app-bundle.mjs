@@ -4,12 +4,14 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as esbuild from 'esbuild'
 import { buildMobileWebAppBundle } from './build-mobile-web-app-bundle.mjs'
-import { isDirectInvocation } from './build-mobile-web-bundle.mjs'
-import { assertNoCarriageReturnsInSource } from './verify-mobile-web-bundle.mjs'
-import { assertMobileWebBundleBuilt } from './verify-packaged-mobile-web-bundle.cjs'
+import { isDirectInvocation } from './script-entry-detection.mjs'
+import { assertNoCarriageReturnsInSource } from './mobile-web-source-line-endings.mjs'
+import {
+  MOBILE_WEB_BUNDLE_DIR as defaultBundleDir,
+  assertMobileWebBundleBuilt
+} from './verify-packaged-mobile-web-bundle.cjs'
 
 const projectDir = fileURLToPath(new URL('../..', import.meta.url))
-const defaultBundleDir = join(projectDir, 'out', 'mobile-web-app')
 const manifestContract = join(
   projectDir,
   'src',
@@ -18,65 +20,88 @@ const manifestContract = join(
   'manifest-contract.ts'
 )
 
-/**
- * The document, the route chunks and the images the route tree imports. Derived rather than
- * pinned, because a flat number stops agreeing with the chunk ceiling as routes are added: at 128
- * and 42 images, 18 routes are already allowed 88 chunks, and 88 + 42 + 1 is 131, so the asset
- * count would have failed first and named the count rather than the split that caused it. Written
- * as chunks + images + the document, a bundle at the chunk ceiling sits exactly at this one, so
- * the chunk ceiling always trips first and the failure says what actually grew.
- */
+// Derive asset ceiling as chunks+images+document so chunk overflow reports splitting cause before generic count; flat ceiling drifts as routes grow.
 export function mobileWebAppBundleMaxAssets(routeCount, imageCount) {
   return mobileWebAppBundleMaxChunks(routeCount) + imageCount + 1
 }
 
-/**
- * Phase C byte budget for the app bundle, not the contract ceiling (10 MiB per asset,
- * MOBILE_WEB_BUNDLE_MAX_ASSET_BYTES). Deliberately below it so growth trips a build rather than a
- * refused asset on a phone. Splitting barely moves it — the same code is emitted in more files —
- * so shrinking this still means cutting code.
- */
+// Keep total app byte budget below phone’s per-asset contract ceiling to fail at build; splitting alone cannot shrink code size.
 export const MOBILE_WEB_APP_BUNDLE_MAX_TOTAL_BYTES = 9 * 1024 * 1024
 
-/**
- * How many scripts the page may be cut into, for a given number of routes. A chunk is emitted per
- * distinct set of importers rather than per route, so this is not a function of the route count
- * alone — it depends on what the routes in the tree happen to share. Measured on the head that
- * wrote this, dropping routes from the end of the sorted key list: 8 routes emit 32 scripts, 10
- * emit 43, 12 emit 61, 14 emit 69. That is between four and nine more per route depending on which
- * route, so four per route with a flat 16 is a bound rather than a fit.
- *
- * Read the headroom before adding a route: 14 routes measure 69 against this ceiling's 72, and the
- * last two of them cost 8 — exactly the 8 the ceiling grants for two. The fence is at break-even,
- * so the next route that shares less than its neighbours breaches it. That is the failure it is
- * for; it names the split, where the asset count alone would name nothing.
- *
- * The route count is the only term, deliberately. A deferred engine belongs inside one artifact and
- * costs one script: C7.10 item B first reached mermaid with `import('mermaid')`, which emitted 103
- * more because mermaid lazily imports each of its own diagram types, and a second term admitting
- * those would have raised this fence far enough to admit any split at all. The build test's control
- * is what holds that line.
- *
- * This is the ceiling that catches a split running away; MOBILE_WEB_APP_BUNDLE_MAX_ENTRY_BYTES
- * below is the one that catches it collapsing, and it is the real budget of the two.
- */
-export function mobileWebAppBundleMaxChunks(routeCount) {
-  return 4 * routeCount + 16
+// Only this licensed desktop-identical asset has its own allowance; code retains the 9 MiB fence.
+export const MOBILE_WEB_APP_TERMINAL_FONT_MAX_BYTES = 1200 * 1024
+const TERMINAL_FONT_SHA256 = '8efa6ba89f0a1f3eefde028f36aa64a13e36282e15ea0ca6929c664501037467'
+const TERMINAL_FONT_BYTES = 1_177_916
+
+export function mobileWebAppBundleBudgetBytes(manifest) {
+  const fonts = manifest.assets.filter(
+    (asset) => asset.path.endsWith('.woff2') || asset.contentType.startsWith('font/')
+  )
+  if (fonts.length > 1) {
+    fail('only one licensed terminal font may use the independent font allowance')
+  }
+  const font = fonts[0]
+  if (!font) {
+    return manifest.totalBytes
+  }
+  if (
+    font.path !== `assets/${TERMINAL_FONT_SHA256}.woff2` ||
+    font.sha256 !== TERMINAL_FONT_SHA256 ||
+    font.contentType !== 'font/woff2' ||
+    font.byteLength !== TERMINAL_FONT_BYTES ||
+    font.byteLength > MOBILE_WEB_APP_TERMINAL_FONT_MAX_BYTES
+  ) {
+    fail(
+      'terminal font allowance requires the approved hash, path, MIME type and bounded byte length'
+    )
+  }
+  return manifest.totalBytes - font.byteLength
 }
 
-/**
- * What the browser must parse before the first route can paint: the entry plus every chunk it
- * reaches by static import. This is the budget splitting exists to hold — it was 8.16 MB as one
- * chunk and measures 0.89 MiB split — so a route re-imported statically, or `splitting` dropped,
- * fails the build here instead of arriving as a slow first open on a phone.
- *
- * It is not a per-route escape hatch. Importing one route statically already breaks this bound
- * for 5 of the 14: session at 7.16 MiB, tasks 5.91, source-control 5.78, review 5.77,
- * files/preview 5.21. What keeps the hatch usable at all is that expo-router reads
- * `unstable_settings` off layout nodes only, and the subtree's one layout, `h/_layout.tsx`,
- * measures 2.22 MiB static. Any other route needing a synchronous export needs this number
- * re-measured, not a static import.
- */
+// Measure sorted route prefixes with routes.slice(0,n): distinct importer sets determine chunks, not route count.
+// Re-measure table when routes change; it is envelope’s only input, and pins must fail rather than permit arbitrary ceiling bumps.
+export const MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP = [
+  ['./_layout.tsx', 3],
+  ['./h/[hostId]/[...page].tsx', 6],
+  ['./h/[hostId]/accounts.tsx', 10],
+  ['./h/[hostId]/agent-history/[worktreeId].tsx', 15],
+  ['./h/[hostId]/edit.tsx', 20],
+  ['./h/[hostId]/files/[worktreeId].tsx', 24],
+  ['./h/[hostId]/files/preview/[worktreeId].tsx', 31],
+  ['./h/[hostId]/history/[worktreeId].tsx', 34],
+  ['./h/[hostId]/index.tsx', 42],
+  ['./h/[hostId]/new-workspace.tsx', 49],
+  ['./h/[hostId]/pr/[worktreeId].tsx', 50],
+  ['./h/[hostId]/review/[worktreeId].tsx', 57],
+  ['./h/[hostId]/session/[worktreeId].tsx', 69],
+  ['./h/[hostId]/source-control/[worktreeId].tsx', 73],
+  ['./h/[hostId]/tasks.tsx', 87],
+  ['./h/_layout.tsx', 91]
+]
+
+const sweptScripts = MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP.map(([, scripts]) => scripts)
+
+// Marginal script cost per added route defines measured envelope’s worst-case slope.
+export const MOBILE_WEB_APP_BUNDLE_ROUTE_SCRIPT_SPREAD = sweptScripts
+  .slice(1)
+  .map((scripts, index) => scripts - sweptScripts[index])
+
+// Allow four chunks of measured refactor-only drift per head, never cumulative; larger change requires fresh sweep rather than inflated margin.
+export const MOBILE_WEB_APP_BUNDLE_SCRIPT_MARGIN = 4
+
+// Ceiling is swept maximum+margin, flat below sweep length, growing by worst measured route beyond it; test both excess and unused headroom.
+// Route count remains sole term: deferred engine must be one artifact, not admit mermaid’s 103 diagram chunks through a new allowance. Entry closure budget below catches collapsed splitting.
+export function mobileWebAppBundleMaxChunks(routeCount) {
+  const beyondTheSweep = Math.max(0, routeCount - MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP.length)
+  return (
+    sweptScripts.at(-1) +
+    MOBILE_WEB_APP_BUNDLE_SCRIPT_MARGIN +
+    Math.max(...MOBILE_WEB_APP_BUNDLE_ROUTE_SCRIPT_SPREAD) * beyondTheSweep
+  )
+}
+
+// Bound entry/static-import closure before first paint: dropping splitting or statically importing a route can ship slow first-open.
+// Expo-router needs synchronous unstable_settings only on layouts; re-measure budget before making another route static, not as a per-route escape hatch.
 export const MOBILE_WEB_APP_BUNDLE_MAX_ENTRY_BYTES = 3 * 1024 * 1024
 
 /** Every tree whose bytes reach the buildId, so a CRLF checkout cannot fork it. */
@@ -92,12 +117,7 @@ function fail(message) {
   throw new VerificationError(message)
 }
 
-/**
- * How many assets the phone will accept, read from the contract rather than copied: the native
- * shells hold their own 256 and refuse a larger manifest outright. Bundled through esbuild
- * because node cannot resolve that module's extensionless TypeScript imports, so the number is
- * evaluated from the contract and not parsed out of it.
- */
+// Load phone’s manifest asset ceiling from contract through esbuild, which resolves extensionless TS imports; never copy native shell count.
 export async function readMobileWebBundleMaxAssets() {
   const { outputFiles } = await esbuild.build({
     entryPoints: [manifestContract],
@@ -117,13 +137,7 @@ export async function readMobileWebBundleMaxAssets() {
   return ceiling
 }
 
-/**
- * The derived ceiling is only a budget while it stays inside the map the phone can hold: the
- * shells return null for a manifest over MOBILE_WEB_BUNDLE_MAX_ASSETS rather than dropping the
- * extra assets, so a route count that pushes 4r + 16 + images + 1 past it would pass this build
- * and fail on the device with nothing to read. At today's 42 images that is 50 routes, inside
- * what Phase C adds, which is why this is a build failure and not a comment.
- */
+// Reject derived asset allowance beyond phone’s map limit: shells reject whole oversized manifest, not just extras; re-sweep shared routes to tighten envelope.
 export function assertAssetCeilingFitsShell(routeCount, imageCount, shellMaxAssets) {
   const ceiling = mobileWebAppBundleMaxAssets(routeCount, imageCount)
   if (ceiling > shellMaxAssets) {
@@ -138,7 +152,7 @@ export function assertAssetCeilingFitsShell(routeCount, imageCount, shellMaxAsse
 async function buildIntoScratch() {
   const scratch = await mkdtemp(join(tmpdir(), 'orca-mobile-web-app-verify-'))
   try {
-    return await buildMobileWebAppBundle({ outDir: join(scratch, 'mobile-web-app') })
+    return await buildMobileWebAppBundle({ outDir: join(scratch, 'mobile-web') })
   } finally {
     await rm(scratch, { recursive: true, force: true })
   }
@@ -152,9 +166,10 @@ export async function verifyMobileWebAppBundle({ bundleDir = defaultBundleDir } 
 
   const manifest = assertMobileWebBundleBuilt(bundleDir)
 
-  if (manifest.totalBytes > MOBILE_WEB_APP_BUNDLE_MAX_TOTAL_BYTES) {
+  const budgetBytes = mobileWebAppBundleBudgetBytes(manifest)
+  if (budgetBytes > MOBILE_WEB_APP_BUNDLE_MAX_TOTAL_BYTES) {
     fail(
-      `bundle is ${String(manifest.totalBytes)} bytes, over the Phase C budget of ` +
+      `bundle excluding the approved font is ${String(budgetBytes)} bytes, over the Phase C budget of ` +
         `${String(MOBILE_WEB_APP_BUNDLE_MAX_TOTAL_BYTES)}`
     )
   }
@@ -169,9 +184,7 @@ export async function verifyMobileWebAppBundle({ bundleDir = defaultBundleDir } 
       `${bundleDir} is stale: it carries buildId ${manifest.buildId}, a fresh build produces ${first.manifest.buildId}`
     )
   }
-  // Read off the fresh build rather than the manifest: neither bound is a manifest field, and the
-  // buildId just proved this build is the one on disk.
-  // After the fresh build, which is what knows how many of the assets are images.
+  // Read chunk/entry bounds and image count from fresh verified build: they are not manifest fields, while buildId binds on-disk bytes.
   const maxAssets = assertAssetCeilingFitsShell(
     first.routeKeys.length,
     first.imageCount,
@@ -205,7 +218,8 @@ if (isDirectInvocation(import.meta.url, process.argv[1])) {
     const manifest = await verifyMobileWebAppBundle()
     console.log(
       `[verify-mobile-web-app-bundle] OK — ${String(manifest.assets.length)} asset(s), ` +
-        `${String(manifest.totalBytes)}/${String(MOBILE_WEB_APP_BUNDLE_MAX_TOTAL_BYTES)} bytes, ` +
+        `${String(manifest.totalBytes)} total bytes, ` +
+        `${String(mobileWebAppBundleBudgetBytes(manifest))}/${String(MOBILE_WEB_APP_BUNDLE_MAX_TOTAL_BYTES)} bytes excluding the approved font, ` +
         `reproducible buildId ${manifest.buildId}`
     )
   } catch (error) {

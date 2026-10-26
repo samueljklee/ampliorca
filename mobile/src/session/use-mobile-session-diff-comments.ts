@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef, useState } from 'react'
 import { useClipboardWriter } from '../platform/clipboard'
 import { interpretOrThrowRefusalMessage } from '../transport/rpc-refusal-message'
 import { sessionWorktreeRecordRead } from './mobile-session-read-operations'
@@ -9,9 +9,11 @@ import {
   formatDiffComments,
   normalizeMobileDiffComments,
   removeDeliveredMobileDiffComments,
-  removeMobileDiffComments
+  removeMobileDiffComments,
+  sendableMobileDiffComments
 } from './mobile-diff-comments'
 import type { DiffComment } from '../../../src/shared/diff-comment-types'
+import type { DiffNotesDelivery } from './mobile-session-route-types'
 import type { MobileSessionDocumentReadersModel } from './use-mobile-session-document-readers'
 
 export function useMobileSessionDiffComments(scope: MobileSessionDocumentReadersModel) {
@@ -28,6 +30,11 @@ export function useMobileSessionDiffComments(scope: MobileSessionDocumentReaders
     showToast
   } = scope
   const clipboard = useClipboardWriter()
+  // Hold notes until prompt-delivery reply, beyond the create lock, so resend cannot launch another agent with the same notes.
+  const sendingDiffCommentIdsRef = useRef<ReadonlySet<string>>(new Set())
+  const [sendingDiffCommentIds, setSendingDiffCommentIds] = useState<ReadonlySet<string>>(
+    sendingDiffCommentIdsRef.current
+  )
   const loadDiffComments = useCallback(async (): Promise<void> => {
     if (!client || connState !== 'connected' || !worktreeId || isFloatingWorkspaceRoute) {
       setDiffComments([])
@@ -60,7 +67,8 @@ export function useMobileSessionDiffComments(scope: MobileSessionDocumentReaders
   )
 
   useEffect(() => {
-    void loadDiffComments()
+    // Catch at the fire-and-forget mount caller; the recording adapter still needs the loader’s rejection.
+    void loadDiffComments().catch(() => undefined)
   }, [loadDiffComments])
 
   const addDiffCommentForFile = useCallback(
@@ -142,7 +150,10 @@ export function useMobileSessionDiffComments(scope: MobileSessionDocumentReaders
   }, [clipboard, showToast])
 
   const sendDiffCommentsToAgent = useCallback((): void => {
-    const comments = diffCommentsRef.current.filter((comment) => !comment.sentAt)
+    const comments = sendableMobileDiffComments(
+      diffCommentsRef.current,
+      sendingDiffCommentIdsRef.current
+    )
     if (comments.length === 0) {
       return
     }
@@ -151,6 +162,30 @@ export function useMobileSessionDiffComments(scope: MobileSessionDocumentReaders
       prompt: formatDiffComments(comments)
     })
   }, [])
+
+  const sendDiffNotesToNewAgent = useCallback(
+    async (delivery: DiffNotesDelivery, launch: () => Promise<void>): Promise<void> => {
+      const ids = delivery.comments.map((comment) => comment.id)
+      if (ids.some((id) => sendingDiffCommentIdsRef.current.has(id))) {
+        return
+      }
+      const setSending = (next: ReadonlySet<string>): void => {
+        sendingDiffCommentIdsRef.current = next
+        setSendingDiffCommentIds(next)
+      }
+      setSending(new Set([...sendingDiffCommentIdsRef.current, ...ids]))
+      try {
+        await launch()
+      } finally {
+        const next = new Set(sendingDiffCommentIdsRef.current)
+        for (const id of ids) {
+          next.delete(id)
+        }
+        setSending(next)
+      }
+    },
+    []
+  )
 
   const clearDeliveredDiffComments = useCallback(
     async (delivered: readonly DiffComment[]): Promise<void> => {
@@ -178,6 +213,8 @@ export function useMobileSessionDiffComments(scope: MobileSessionDocumentReaders
     deleteDiffCommentForFile,
     copyDiffCommentsToClipboard,
     sendDiffCommentsToAgent,
+    sendingDiffCommentIds,
+    sendDiffNotesToNewAgent,
     clearDeliveredDiffComments
   }
 }

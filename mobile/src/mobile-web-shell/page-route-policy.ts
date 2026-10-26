@@ -1,32 +1,21 @@
 import type { MobileWebBundleManifestRead } from '../transport/mobile-web-bundle-reply-schemas'
+import { BRIDGE_EXTERNAL_NAVIGATION_GRANT } from './cancelled-navigation-target'
 import { BRIDGE_HAPTICS_GRANT } from './bridge/bridge-haptics-notify'
 import { BRIDGE_NATIVE_VERB_NAMES } from './bridge/bridge-native-verbs'
 import { BRIDGE_SCREENCAST_BINARY_GRANT } from './bridge/bridge-screencast-grant'
 
-/** The manifest's route entries, as this shell reads them. */
 export type MobileWebPageRoute = NonNullable<MobileWebBundleManifestRead['routes']>[number]
 
-/**
- * What this app build does on a page's behalf.
- *
- * Every name here is a capability the shell implements and will honour over the bridge, and it is
- * the same list `init.grants.native` tells the page it has. A bundle naming a grant absent from
- * here renders its native screen instead: an old app against a new bundle lands on a screen that
- * works rather than on a tap that does nothing.
- */
+// Advertise only implemented capabilities; missing required grants leave the route unserved, while missing optional grants hide its affordance.
 export const MOBILE_WEB_SHELL_GRANTS = [
   'navigate',
   'storage',
   'externalLink',
-  // The screencast's binary frames, encoded into `event.binary` for a page that subscribed with
-  // `wantsBinary`. Named where the rule that reads it lives, so the two cannot drift.
   BRIDGE_SCREENCAST_BINARY_GRANT,
-  // The device's own feedback, played by the app's functions on the page's behalf. A token rather
-  // than the notify's dotted name, because a notify is not a verb: the dotted names below are the
-  // verb table's, spread from it.
   BRIDGE_HAPTICS_GRANT,
-  // Spread rather than restated: the verb table is keyed on this same tuple, so a verb cannot be
-  // advertised without a row and a row cannot exist without being advertised.
+  // No page notify exists for cancelled browser navigation; this capability tells the page whether native can open those links externally.
+  BRIDGE_EXTERNAL_NAVIGATION_GRANT,
+  // Derive advertised verbs from the handler table’s tuple so neither side can grow alone.
   ...BRIDGE_NATIVE_VERB_NAMES
 ] as const
 
@@ -36,92 +25,176 @@ function implementsGrant(name: string): boolean {
   return MOBILE_WEB_SHELL_GRANTS.some((grant) => grant === name)
 }
 
-/**
- * Whether a concrete route is the one a pattern names.
- *
- * Segment by segment, because a dynamic segment matches one segment and never a path: `/h/[hostId]`
- * is the worktree list and `/h/a/session/b` is a different screen that starts with the same two
- * segments. A pattern segment in brackets matches any non-empty segment; everything else is exact.
- */
-export function matchesRoutePattern(pathname: string, pattern: string): boolean {
-  const actual = pathname.split('/')
-  const expected = pattern.split('/')
-  if (actual.length !== expected.length) {
-    return false
-  }
-  return expected.every((segment, index) => {
-    const value = actual[index]
-    if (value === undefined) {
-      return false
-    }
-    return segment.startsWith('[') && segment.endsWith(']') ? value.length > 0 : segment === value
-  })
+function isDynamicSegment(segment: string): boolean {
+  return segment.startsWith('[') && segment.endsWith(']')
 }
 
-/**
- * The routes this shell will render from the page: listed, and needing nothing it lacks.
- *
- * `every` and not `some`: one grant this build lacks takes the whole route native, so a token every
- * page route declares couples the whole set to a shell that carries it — `haptics` is the first,
- * and against a shell without it no page route is served at all.
- */
+// Match Expo Router 55.0.18: strip brackets, then recognize the leading ellipsis.
+function isRestSegment(segment: string): boolean {
+  return isDynamicSegment(segment) && segment.slice(1, -1).startsWith('...')
+}
+
+export const ROUTE_PATTERN_REFUSALS = ['rest-segment-not-last', 'rest-segments-repeated'] as const
+
+export type RoutePatternRefusal = (typeof ROUTE_PATTERN_REFUSALS)[number]
+
+// Support one trailing rest segment only; refuse non-trailing/repeated rest rather than guess, even though Expo’s internal matcher accepts some non-trailing shapes.
+export function routePatternRefusal(pattern: string): RoutePatternRefusal | null {
+  const segments = pattern.split('/')
+  const rest = segments.flatMap((segment, index) => (isRestSegment(segment) ? [index] : []))
+  if (rest.length > 1) {
+    return 'rest-segments-repeated'
+  }
+  return rest[0] !== undefined && rest[0] !== segments.length - 1 ? 'rest-segment-not-last' : null
+}
+
+// Match dynamic segments one-for-one; trailing rest needs one or more segments, as Expo Router 55.0.18’s trailing-slash regex requires.
+export function matchesRoutePattern(pathname: string, pattern: string): boolean {
+  if (routePatternRefusal(pattern) !== null) {
+    return false
+  }
+  const actual = pathname.split('/')
+  const expected = pattern.split('/')
+  const fixed = isRestSegment(expected[expected.length - 1] ?? '')
+    ? expected.length - 1
+    : expected.length
+  if (fixed === expected.length ? actual.length !== fixed : actual.length <= fixed) {
+    return false
+  }
+  return (
+    expected.slice(0, fixed).every((segment, index) => {
+      const value = actual[index]
+      if (value === undefined) {
+        return false
+      }
+      return isDynamicSegment(segment) ? value.length > 0 : segment === value
+    }) && actual.slice(fixed).every((value) => value.length > 0)
+  )
+}
+
+// Every required grant must exist; one missing capability leaves the whole route unserved.
 function implementedPageRouteEntries(
   routes: readonly MobileWebPageRoute[] | undefined
 ): MobileWebPageRoute[] {
   return (routes ?? []).filter((route) => route.grants.every(implementsGrant))
 }
 
-/** The patterns alone, for the readers in this module that only name routes. */
-function implementedPageRoutes(routes: readonly MobileWebPageRoute[] | undefined): string[] {
-  return implementedPageRouteEntries(routes).map((route) => route.pathname)
+// Share effective grants between session and target pairs so handoff and host enforcement agree. Optional grants affect affordances without deciding route availability.
+function effectiveRouteGrants(route: MobileWebPageRoute): string[] {
+  return [...route.grants, ...(route.optionalGrants ?? [])].filter(implementsGrant)
 }
 
-/**
- * Whether the page renders this route, rather than the native screen.
- *
- * Both halves are the negotiation: the desktop lists what it has proved on the web, and the shell
- * answers for what it can do. Either side saying no leaves the route native, which is where every
- * route starts and what every phone already ships.
- */
-export function pageRendersRoute(
-  routes: readonly MobileWebPageRoute[] | undefined,
-  pathname: string
-): boolean {
-  return implementedPageRoutes(routes).some((pattern) => matchesRoutePattern(pathname, pattern))
-}
-
-/**
- * The grants one page session gets: what this shell implements, narrowed to what the route it was
- * opened for declared.
- *
- * Narrowed, because `init.grants.native` is what the page is allowed to do, and handing every
- * session the shell's whole capability set gives a route that asked for `navigate` and `storage`
- * the clipboard as well. That was harmless while every grant was a navigation or a write the page
- * could make anyway, and stopped being harmless the moment a verb reads something back.
- *
- * A route the bundle does not declare gets nothing, which is the same answer as a page the shell
- * would not render at all.
- */
+// Grant only the chosen route’s declared/implemented capabilities; unlisted routes get none, never the shell’s whole clipboard-capable surface.
 export function grantsForRoute(
   routes: readonly MobileWebPageRoute[] | undefined,
   pathname: string
 ): string[] {
-  const declared = (routes ?? []).find((route) => matchesRoutePattern(pathname, route.pathname))
-  return declared === undefined ? [] : declared.grants.filter(implementsGrant)
+  const matching = (routes ?? []).filter((route) => matchesRoutePattern(pathname, route.pathname))
+  // Prefer exact declarations to overlapping rest patterns so catch-all grants cannot override a screen’s own row.
+  const declared =
+    matching.find((route) => !route.pathname.split('/').some(isRestSegment)) ?? matching[0]
+  return declared === undefined ? [] : effectiveRouteGrants(declared)
 }
 
-/**
- * What one bundle's route list says about one session, in the three shapes the reducer needs.
- *
- * Derived together because they are one reading of one list: the patterns the page may keep, what
- * each of them declared, and what this route itself was granted. Three sites used to spell this
- * out; a fourth spelling is how they drift.
- */
-export function routeViewOf(routes: readonly MobileWebPageRoute[] | undefined, pathname: string) {
+// Project loose manifest entries into strict pathname/grants pairs so future desktop fields cannot reject the bridge session.
+// Use the same effective grants for targets and the current route so local-hop authorization cannot drift.
+export function routeViewOf(
+  routes: readonly MobileWebPageRoute[] | undefined,
+  pathname: string,
+  wide = false
+) {
   const entries = implementedPageRouteEntries(routes)
+  const root = hostAreaRoot(pathname)
+  if (!servesWideLayout(entries, pathname, wide)) {
+    return { pageRoutes: [], pageRouteGrants: [], routeGrants: [], ownsHostArea: false }
+  }
+  const ownsHostArea = wide && pathname === root
+  // Omit the host-route pair in wide detail panes so returning to the host opens its owning session instead of another list beside it.
+  const paired =
+    wide && !ownsHostArea && root !== null
+      ? entries.filter((route) => !matchesRoutePattern(root, route.pathname))
+      : entries
   return {
     pageRoutes: entries.map((route) => route.pathname),
-    pageRouteGrants: entries,
-    routeGrants: grantsForRoute(routes, pathname)
+    pageRouteGrants: paired.map((route) => ({
+      pathname: route.pathname,
+      grants: effectiveRouteGrants(route)
+    })),
+    routeGrants: ownsHostArea ? hostAreaGrants(entries) : grantsForRoute(routes, pathname),
+    ownsHostArea
   }
+}
+
+type RouteViewFacts = {
+  readonly pageRoutes: readonly string[]
+  readonly pageRouteGrants: readonly { readonly pathname: string }[]
+  readonly routeGrants: readonly string[]
+  readonly ownsHostArea: boolean
+}
+
+// Compare paired route names too: wide detail sessions omit the host-route pair.
+export function sameRouteView(a: RouteViewFacts, b: RouteViewFacts): boolean {
+  const same = (x: readonly string[], y: readonly string[]) =>
+    x.length === y.length && x.every((item, index) => item === y[index])
+  const paired = (view: RouteViewFacts) => view.pageRouteGrants.map((pair) => pair.pathname)
+  return (
+    a.ownsHostArea === b.ownsHostArea &&
+    same(a.pageRoutes, b.pageRoutes) &&
+    same(paired(a), paired(b)) &&
+    same(a.routeGrants, b.routeGrants)
+  )
+}
+
+export function isHostRouteOf(href: string, hostId: string): boolean {
+  const [path] = href.split(/[?#]/)
+  return path === `/h/${hostId}` || path === `/h/${encodeURIComponent(hostId)}`
+}
+
+function hostAreaRoot(pathname: string): string | null {
+  const [empty, h, host] = pathname.split('/')
+  return empty === '' && h === 'h' && host !== undefined && host !== '' ? `/h/${host}` : null
+}
+
+function pageCanOwnHostArea(entries: readonly MobileWebPageRoute[], root: string): boolean {
+  return entries.some(
+    (route) => route.canOwnHostArea === true && matchesRoutePattern(root, route.pathname)
+  )
+}
+
+// Require host-area ownership support on wide layouts to prevent old pages duplicating the native sidebar.
+function servesWideLayout(
+  entries: readonly MobileWebPageRoute[],
+  pathname: string,
+  wide: boolean
+): boolean {
+  const root = hostAreaRoot(pathname)
+  return !wide || (root !== null && pageCanOwnHostArea(entries, root))
+}
+
+// Blame missing shell grants only if implementing every grant would serve the route; unreadable patterns cannot establish which app needs updating.
+export type PageRouteRefusalVerdict =
+  | { readonly kind: 'blocked'; readonly reason: 'page-route-unlisted' }
+  | { readonly kind: 'blocked'; readonly reason: 'page-route-grant-missing' }
+
+export function pageRouteRefusalVerdict(
+  routes: readonly MobileWebPageRoute[] | undefined,
+  pathname: string,
+  wide: boolean
+): PageRouteRefusalVerdict | null {
+  const declared = routes ?? []
+  if (declared.some((route) => routePatternRefusal(route.pathname) !== null)) {
+    return null
+  }
+  const servedWithEveryGrant =
+    servesWideLayout(declared, pathname, wide) &&
+    declared.some((route) => matchesRoutePattern(pathname, route.pathname))
+  return {
+    kind: 'blocked',
+    reason: servedWithEveryGrant ? 'page-route-grant-missing' : 'page-route-unlisted'
+  }
+}
+
+// Host-area pages navigate all served routes in-page and read their workspace keys, so combine effective grants plus native.storage.read.
+function hostAreaGrants(entries: readonly MobileWebPageRoute[]): string[] {
+  return [...new Set([...entries.flatMap(effectiveRouteGrants), 'native.storage.read'])]
 }

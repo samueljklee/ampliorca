@@ -2,13 +2,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { X } from 'lucide-react-native'
 import { colors, spacing } from '../theme/mobile-theme'
 
-/**
- * One dismissible line above the list, in two tones.
- *
- * `notice` is the default and stays monochrome: the host is healthy and the user's target simply
- * went away. `failure` is for an action that did not happen, which the list has to say without
- * taking the screen: color is for state, so it is one red rule and nothing else.
- */
+// Monochrome notice reports vanished target; failure uses one red rule for action refusal without taking screen.
+// Announce inserted banners: failure uses alert/assertive, notice uses polite live region (RN has no status role).
 export function HostRouteNoticeBanner({
   message,
   tone = 'notice',
@@ -19,7 +14,11 @@ export function HostRouteNoticeBanner({
   onDismiss: () => void
 }) {
   return (
-    <View style={[styles.banner, tone === 'failure' && styles.failure]}>
+    <View
+      style={[styles.banner, tone === 'failure' && styles.failure]}
+      accessibilityRole={tone === 'failure' ? 'alert' : undefined}
+      accessibilityLiveRegion={tone === 'failure' ? 'assertive' : 'polite'}
+    >
       <Text style={styles.text}>{message}</Text>
       <Pressable
         onPress={onDismiss}

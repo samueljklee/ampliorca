@@ -22,12 +22,18 @@ import { PRSection } from './PRSection'
 import { PRCheckDetailView, type DetailEntry } from './PRCheckDetail'
 import { mobilePrSidebarStyles as styles } from './mobile-pr-sidebar-styles'
 import { prAiTriageStyles as triageStyles } from './pr-ai-triage-styles'
+import { AgentLaunchNotice } from '../AgentLaunchNotice'
+import type { MobileAgentLaunchAvailability } from '../../session/mobile-agent-launch-availability'
 
 // Launches the "Fix checks with AI" agent. Absent for display-only usages.
 export type PrChecksTriage = {
   fixChecks: () => void
   isBusy: boolean
+  availability: MobileAgentLaunchAvailability
+  success: string | null
   error: string | null
+  warning: string | null
+  undeliveredPrompt: string | null
 }
 
 type Props = {
@@ -42,9 +48,7 @@ type Props = {
   triage?: PrChecksTriage
 }
 
-// Checks summary (counts) + sorted per-check rows. Each row expands to lazily
-// fetch github.prCheckDetails, cached per check key (U5). Display-only; the
-// rerun action is U6.
+// Sort summary/check rows; lazily cache expanded github.prCheckDetails per check key. Rerun action is separate.
 export function PRChecksSection({
   checks,
   checksError,
@@ -78,8 +82,7 @@ export function PRChecksSection({
           ? { status: 'loaded', details: outcome.result }
           : { status: 'error', message: outcome.error }
       } catch (err) {
-        // Why: a rejection must clear the entry's `loading` state, not leave it
-        // spinning forever — fall back to an error detail.
+        // Set error detail on rejection so loading cannot spin forever.
         entry = {
           status: 'error',
           message: err instanceof Error ? err.message : 'Failed to load check details'
@@ -90,7 +93,6 @@ export function PRChecksSection({
     [client, worktreeId, prRepo]
   )
 
-  // Fetch a check's detail the first time it expands; the loaded entry is the cache.
   const ensureDetail = useCallback(
     (check: PRCheckDetail, key: string) => {
       setDetailCache((prev) => {
@@ -121,9 +123,7 @@ export function PRChecksSection({
     [ensureDetail]
   )
 
-  // Auto-expand the first failing check once per loaded check set (parity with the
-  // desktop ChecksList). Keyed on the sorted check identities so a worktree switch
-  // or fresh load re-runs it, but the user's later manual collapses are not fought.
+  // Auto-expand first failure once per sorted identity set; reset on worktree/fresh load without overriding later user collapse.
   const autoExpandedSignatureRef = useRef<string | null>(null)
   const sortedSignature = sorted.map(prCheckKey).join('|')
   useEffect(() => {
@@ -175,8 +175,7 @@ export function PRChecksSection({
         </>
       }
     >
-      {/* Triage strip at the top of the section (desktop PRTriageStrip): a failing
-          summary + a Fix action, so the most actionable state leads the list. */}
+      {/* Lead with desktop-style failing summary and Fix action so actionable state comes first. */}
       {triage && summary.failed > 0 ? (
         <View style={triageStyles.triageStrip}>
           <View style={triageStyles.triageStripText}>
@@ -190,7 +189,7 @@ export function PRChecksSection({
           <Pressable
             style={({ pressed }) => [triageStyles.triageStripButton, pressed && { opacity: 0.7 }]}
             onPress={triage.fixChecks}
-            disabled={triage.isBusy}
+            disabled={triage.isBusy || triage.availability !== 'available'}
             accessibilityRole="button"
             accessibilityLabel="Fix failing checks with AI"
           >
@@ -203,7 +202,16 @@ export function PRChecksSection({
           </Pressable>
         </View>
       ) : null}
-      {triage?.error ? <Text style={triageStyles.triageError}>{triage.error}</Text> : null}
+      {triage ? (
+        <AgentLaunchNotice
+          availability={summary.failed > 0 ? triage.availability : 'available'}
+          success={triage.success}
+          error={triage.error}
+          warning={triage.warning}
+          undeliveredPrompt={triage.undeliveredPrompt}
+          errorStyle={triageStyles.triageError}
+        />
+      ) : null}
       {checksError ? <Text style={triageStyles.triageError}>{checksError}</Text> : null}
       {sorted.map((check) => {
         const key = prCheckKey(check)
@@ -226,8 +234,7 @@ export function PRChecksSection({
                   {check.name}
                 </Text>
               </View>
-              {/* Status word + open-on-host icon (desktop ChecksList row), so the
-                  outcome reads without expanding. */}
+              {/* Show status word/open-on-host without requiring expansion, matching desktop. */}
               <Text style={[styles.rowStatus, { color: statusColor(token) }]} numberOfLines={1}>
                 {checkStatusLabel(check)}
               </Text>

@@ -29,16 +29,16 @@ function event(overrides: Record<string, unknown> = {}): string {
 
 function makeTailer(home: string) {
   const ingested: SpoolRecord[] = []
-  const tailer = new AmplifierAgentBridgeTailer((record) => ingested.push(record), home)
+  const tailer = new AmplifierAgentBridgeTailer((record) => {
+    ingested.push(record)
+  }, home)
   return { tailer, ingested }
 }
 
 describe('amplifierAgentWorkspaceSlug', () => {
-  it('derives the event path from POSIX and Windows cwd forms without trimming a trailing separator', () => {
-    expect(amplifierAgentWorkspaceSlug('/Users/sam/repo/project/')).toBe('-Users-sam-repo-project-')
-    expect(amplifierAgentWorkspaceSlug('C:\\Users\\sam\\repo\\project')).toBe(
-      '-C:-Users-sam-repo-project'
-    )
+  it('matches the REPL --workspace basename for POSIX and Windows cwd forms', () => {
+    expect(amplifierAgentWorkspaceSlug('/Users/sam/repo/project/')).toBe('project')
+    expect(amplifierAgentWorkspaceSlug('C:\\Users\\sam\\repo\\project')).toBe('project')
     expect(
       amplifierAgentEventsPath('/tmp/amplifier-agent', '/Users/sam/repo/project', 'session-1')
     ).toBe(
@@ -46,7 +46,7 @@ describe('amplifierAgentWorkspaceSlug', () => {
         '/tmp/amplifier-agent',
         'state',
         'workspaces',
-        '-Users-sam-repo-project',
+        'project',
         'sessions',
         'session-1',
         'context-intelligence',
@@ -57,7 +57,67 @@ describe('amplifierAgentWorkspaceSlug', () => {
 })
 
 describe('AmplifierAgentBridgeTailer', () => {
-  it('ingests only a registered session and stops after it is unregistered', () => {
+  it('resumes the REPL-discovered workspace without treating old turns as live', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'amplifier-agent-tailer-'))
+    const file = join(
+      home,
+      'state',
+      'workspaces',
+      'original',
+      'sessions',
+      'session-1',
+      'context-intelligence',
+      'events.jsonl'
+    )
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, event())
+    const { tailer, ingested } = makeTailer('/unused-default-home')
+    tailer.registerSession('tab-1:0', '/new/location', 'session-1', {
+      home,
+      resume: true,
+      launchToken: 'current-launch'
+    })
+    tailer.start()
+    await vi.advanceTimersByTimeAsync(300)
+    expect(ingested).toEqual([])
+    appendFileSync(file, event({ turn_id: 'turn-2' }))
+    await vi.advanceTimersByTimeAsync(300)
+    tailer.stop()
+    expect(ingested).toEqual([
+      expect.objectContaining({
+        launchToken: 'current-launch',
+        payload: { session_id: 'session-1', turn_id: 'turn-2' }
+      })
+    ])
+  })
+
+  it('revokes a pending delivery when its pane is rebound', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'amplifier-agent-tailer-'))
+    const file = amplifierAgentEventsPath(home, '/repo/project', 'session-1')
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, event())
+    const applied: SpoolRecord[] = []
+    let release!: () => void
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const tailer = new AmplifierAgentBridgeTailer(async (entry, isCurrent) => {
+      await blocked
+      if (isCurrent()) {
+        applied.push(entry)
+      }
+    }, home)
+    tailer.registerSession('tab-1:0', '/repo/project', 'session-1')
+    tailer.start()
+    await vi.advanceTimersByTimeAsync(300)
+    tailer.registerSession('tab-1:0', '/repo/project', 'session-2')
+    release()
+    await tailer.flush()
+    tailer.stop()
+    expect(applied).toEqual([])
+  })
+
+  it('ingests only a registered session and stops after it is unregistered', async () => {
     const home = mkdtempSync(join(tmpdir(), 'amplifier-agent-tailer-'))
     const cwd = '/Users/sam/repo/project'
     const sessionId = 'session-1'
@@ -68,7 +128,7 @@ describe('AmplifierAgentBridgeTailer', () => {
 
     tailer.registerSession('tab-1:0', cwd, sessionId)
     tailer.start()
-    vi.advanceTimersByTime(300)
+    await vi.advanceTimersByTimeAsync(300)
 
     expect(ingested).toEqual([
       {
@@ -82,13 +142,13 @@ describe('AmplifierAgentBridgeTailer', () => {
 
     tailer.unregisterSession('tab-1:0')
     appendFileSync(file, event({ turn_id: 'turn-2' }))
-    vi.advanceTimersByTime(300)
+    await vi.advanceTimersByTimeAsync(300)
     tailer.stop()
 
     expect(ingested).toHaveLength(1)
   })
 
-  it('reads only bytes appended since its prior poll', () => {
+  it('reads only bytes appended since its prior poll', async () => {
     const home = mkdtempSync(join(tmpdir(), 'amplifier-agent-tailer-'))
     const cwd = '/Users/sam/repo/project'
     const file = amplifierAgentEventsPath(home, cwd, 'session-1')
@@ -98,9 +158,9 @@ describe('AmplifierAgentBridgeTailer', () => {
 
     tailer.registerSession('tab-1:0', cwd, 'session-1')
     tailer.start()
-    vi.advanceTimersByTime(300)
+    await vi.advanceTimersByTimeAsync(300)
     appendFileSync(file, event({ turn_id: 'turn-2' }))
-    vi.advanceTimersByTime(600)
+    await vi.advanceTimersByTimeAsync(600)
     tailer.stop()
 
     expect(ingested.map((record) => (record.payload as { turn_id: string }).turn_id)).toEqual([
@@ -109,7 +169,7 @@ describe('AmplifierAgentBridgeTailer', () => {
     ])
   })
 
-  it('leaves a torn trailing line until a later poll terminates it', () => {
+  it('leaves a torn trailing line until a later poll terminates it', async () => {
     const home = mkdtempSync(join(tmpdir(), 'amplifier-agent-tailer-'))
     const cwd = '/Users/sam/repo/project'
     const file = amplifierAgentEventsPath(home, cwd, 'session-1')
@@ -120,11 +180,11 @@ describe('AmplifierAgentBridgeTailer', () => {
 
     tailer.registerSession('tab-1:0', cwd, 'session-1')
     tailer.start()
-    vi.advanceTimersByTime(300)
+    await vi.advanceTimersByTimeAsync(300)
     expect(ingested).toHaveLength(1)
 
     appendFileSync(file, '\n')
-    vi.advanceTimersByTime(300)
+    await vi.advanceTimersByTimeAsync(300)
     tailer.stop()
 
     expect(ingested).toHaveLength(2)

@@ -15,6 +15,7 @@ import {
   TERMINAL_INPUT_SEND_OPTIONS
 } from '../terminal/terminal-send-request'
 import { normalizeTerminalTextInput } from '../terminal/terminal-text-input-normalization'
+import { useTerminalTextFieldSubmitBinding } from '../terminal/use-terminal-text-field-submit-binding'
 import { useAgentSendKeyboardDismissal } from './use-agent-send-keyboard-dismissal'
 import type { MobileSessionTab } from './mobile-session-route-types'
 import { useMobileSessionTabActionSheetOpener } from './use-mobile-session-tab-action-targets'
@@ -45,7 +46,9 @@ export function useMobileSessionTerminalSendActions(scope: MobileSessionTerminal
     sendingRef,
     bufferedTerminalDraftState,
     getSendCompletionGeneration,
+    getLiveInteractionGeneration,
     handleLiveInputAccessoryBytes,
+    handleLiveInputSubmit,
     canSend,
     scheduleDelayedAction,
     showToast
@@ -65,8 +68,38 @@ export function useMobileSessionTerminalSendActions(scope: MobileSessionTerminal
     getSendCompletionGeneration
   )
 
+  const submitLiveInput = useCallback(() => {
+    const submit = handleLiveInputSubmit()
+    const sendOrigin = {
+      tab: activeSessionTab,
+      generation: getSendCompletionGeneration(),
+      interaction: getLiveInteractionGeneration()
+    }
+    void submit.then((accepted) =>
+      dismissKeyboardAfterAgentSend(
+        sendOrigin,
+        accepted && sendOrigin.interaction === getLiveInteractionGeneration()
+      )
+    )
+  }, [activeSessionTab, dismissKeyboardAfterAgentSend, handleLiveInputSubmit])
+  const bindLiveInputField = useTerminalTextFieldSubmitBinding(
+    liveInputRef,
+    submitLiveInput,
+    (input) => {
+      if (!client || !activeHandle || !canSend) {
+        return false
+      }
+      void handleAccessoryKey(input)
+      return true
+    }
+  )
+  const submitBufferedDraft = (): void => {
+    void handleSend()
+  }
+  const bindCommandField = useTerminalTextFieldSubmitBinding(commandInputRef, submitBufferedDraft)
+
   async function handleSend() {
-    // Why: the return key still submits while offline; hold the composed text instead of firing a doomed RPC (#6713).
+    // Offline Return must preserve composed text instead of firing a doomed write.
     if (!client || !activeHandle || sendingRef.current || !canSend) {
       return
     }
@@ -87,7 +120,7 @@ export function useMobileSessionTerminalSendActions(scope: MobileSessionTerminal
       bufferedTerminalDraftState.restoreRejectedDraft(bufferedDraftSend)
 
     try {
-      // Why: fail now and restore the text — a send parked across a reconnect would execute long after the tap.
+      // Fail/restore immediately so reconnect cannot execute stale text long after the tap.
       const response = await terminalInputSend.request(
         client,
         buildTerminalSendParams({
@@ -157,8 +190,7 @@ export function useMobileSessionTerminalSendActions(scope: MobileSessionTerminal
       ) {
         return false
       }
-      // Why: live-mirror deltas queued behind a dying send drain into the connect
-      // wait and replay stale bytes after reconnect (#6713's `YZZYecho …` corruption).
+      // Discard live-mirror deltas behind a dying send so reconnect cannot replay stale bytes.
       return terminalInputSend
         .request(
           rpc,
@@ -201,7 +233,7 @@ export function useMobileSessionTerminalSendActions(scope: MobileSessionTerminal
 
   const openSessionTabActionSheetAfterKeyboardDismiss = useCallback(
     (tab: MobileSessionTab) => {
-      // Why: live input may queue a refocus; open the action sheet after the keyboard is gone, not racing it under the drawer.
+      // Wait for keyboard dismissal before opening the sheet or queued refocus can race under it.
       sessionTabActionSheetRequestSeqRef.current += 1
       const requestSeq = sessionTabActionSheetRequestSeqRef.current
       clearSessionTabActionSheetKeyboardListener()
@@ -248,7 +280,10 @@ export function useMobileSessionTerminalSendActions(scope: MobileSessionTerminal
     openSessionTabActionSheet,
     openSessionTabActionSheetAfterKeyboardDismiss,
     dismissSoftwareKeyboard,
-    dismissKeyboardAfterAgentSend
+    dismissKeyboardAfterAgentSend,
+    bindLiveInputField,
+    bindCommandField,
+    submitLiveInput
   }
 }
 

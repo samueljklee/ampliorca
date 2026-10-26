@@ -1,18 +1,14 @@
-/**
- * The native half of the capture seam: the calls it makes, and which interruptions end a capture.
- *
- * Thin by design — this file is five device calls behind a shape the page can answer — but the
- * interruption rule is shared with `dictation-capture.web.ts` and is exactly where the two drifted:
- * the page treated every interruption as a loss while this one has always gated on `began` and
- * `blocked`, so an `ended` on its own cancelled a live dictation on the page and nothing natively.
- */
+// Pin the native interruption rule too: began/blocked cancel, while ended alone returns the OS session and must leave dictation alive.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const engine = vi.hoisted(() => ({
   listeners: new Map<string, (event: { data: unknown }) => void>(),
   calls: new Array<string>(),
-  /** Set by a case that wants the JSI binding to fail the way a device can. */
-  throwOn: new Set<string>()
+  throwOn: new Set<string>(),
+  openFails: false,
+  // Record queued screen-lock calls separately; their microtask order relative to synchronous engine calls is not a contract.
+  screen: new Array<string>(),
+  screenTags: new Set<string>()
 }))
 
 vi.mock('@orca/expo-two-way-audio', () => ({
@@ -26,7 +22,7 @@ vi.mock('@orca/expo-two-way-audio', () => ({
   },
   initialize: () => {
     engine.calls.push('initialize')
-    return Promise.resolve(true)
+    return Promise.resolve(!engine.openFails)
   },
   requestMicrophonePermissionsAsync: () => {
     engine.calls.push('permission')
@@ -48,22 +44,34 @@ vi.mock('@orca/expo-two-way-audio', () => ({
 }))
 vi.mock('expo-keep-awake', () => ({
   activateKeepAwakeAsync: (tag: string) => {
-    engine.calls.push(`+${tag}`)
+    engine.screen.push('+')
+    engine.screenTags.add(tag)
     return Promise.resolve()
   },
   deactivateKeepAwake: (tag: string) => {
-    engine.calls.push(`-${tag}`)
+    engine.screen.push('-')
+    engine.screenTags.add(tag)
     return Promise.resolve()
   }
 }))
 
 import { useDictationCapture } from './dictation-capture'
 
-beforeEach(() => {
+beforeEach(async () => {
+  // Release the module-scoped capture lock and drain its queue between cases.
+  useDictationCapture().release()
+  await flushScreen()
   engine.listeners.clear()
   engine.calls.length = 0
   engine.throwOn.clear()
+  engine.openFails = false
+  engine.screen.length = 0
+  engine.screenTags.clear()
 })
+
+async function flushScreen(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0))
+}
 
 describe('which interruptions end a native capture', () => {
   it('ends on the two the OS means by it, and not on the one it does not', () => {
@@ -73,15 +81,13 @@ describe('which interruptions end a native capture', () => {
       interrupted += 1
     })
     const fire = (data: string) => engine.listeners.get('onAudioInterruption')?.({ data })
-    // `ended` on its own is the OS handing the session back, not taking it away. A dictation that
-    // cancelled on it would end itself the moment a notification chime finished playing.
+    // Ended returns control after a chime; it must not cancel dictation.
     fire('ended')
     expect(interrupted).toBe(0)
     fire('began')
     expect(interrupted).toBe(1)
     fire('blocked')
     expect(interrupted).toBe(2)
-    // And a kind from a newer engine is not an interruption this build can describe.
     fire('something-new')
     expect(interrupted).toBe(2)
   })
@@ -112,21 +118,54 @@ describe('the calls the native half makes', () => {
     engine.listeners.get('onMicrophoneData')?.({ data: bytes })
     expect(chunks).toEqual([{ data: bytes, droppedBytes: 0 }])
   })
+})
 
-  it('takes the wake tag through expo-keep-awake', async () => {
+describe('the screen the native microphone holds awake', () => {
+  it('takes the screen when the capture opens and gives it back when it closes', async () => {
     const capture = useDictationCapture()
-    await capture.keepAwake.activate('orca-a')
-    await capture.keepAwake.deactivate('orca-a')
-    expect(engine.calls).toEqual(['+orca-a', '-orca-a'])
+    await capture.open()
+    await flushScreen()
+    expect(engine.screen).toEqual(['+'])
+    await capture.end()
+    await flushScreen()
+    expect(engine.screen).toEqual(['+', '-'])
+    expect(engine.screenTags.size).toBe(1)
+  })
+
+  it('gives it back when the screen goes away with a capture still open', async () => {
+    const capture = useDictationCapture()
+    await capture.open()
+    capture.release()
+    await flushScreen()
+    expect(engine.screen).toEqual(['+', '-'])
+  })
+
+  it('holds nothing for an engine that would not open', async () => {
+    engine.openFails = true
+    const capture = useDictationCapture()
+    await expect(useDictationCapture().open()).resolves.toEqual({
+      ok: false,
+      reason: 'unavailable'
+    })
+    await flushScreen()
+    expect(engine.screen).toEqual([])
+    capture.release()
+    await flushScreen()
+    expect(engine.screen).toEqual([])
+  })
+
+  it('does not take it twice when a second open follows the first', async () => {
+    const capture = useDictationCapture()
+    await capture.open()
+    await capture.open()
+    await flushScreen()
+    expect(engine.screen).toEqual(['+'])
   })
 })
 
 describe('a device whose audio session will not shut down', () => {
   it('resolves `end` rather than rejecting it, which the contract promises', async () => {
-    // `end` is async, so a throw from the binding becomes a rejection. Every caller reaches it as
-    // `void capture.end()` inside a synchronous try/catch, which cannot see a rejection — so the
-    // failure left the app with an unhandled rejection instead of a logged one, and the cleanup
-    // that was meant to keep going was never the thing at risk.
+    // Synchronous try cannot catch void end() rejection; swallow/log binding failures inside cleanup to prevent unhandled rejections.
     engine.throwOn.add('toggleRecording(false)')
     const capture = useDictationCapture()
     await expect(capture.end()).resolves.toBeUndefined()

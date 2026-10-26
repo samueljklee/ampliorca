@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import {
   Clipboard,
-  ClipboardCopy,
   Copy,
   Eraser,
   GitFork,
@@ -12,6 +11,7 @@ import {
   PanelsTopLeft,
   PanelRightClose,
   Pencil,
+  RotateCcw,
   SquareTerminal,
   TextSelect,
   X
@@ -32,6 +32,8 @@ import type { KeybindingOverrides } from '../../../../shared/keybindings'
 import { translate } from '@/i18n/i18n'
 import { isMacPlatform, nativeChatToggleShortcutLabel } from '../native-chat/native-chat-shortcut'
 import { AgentSessionContinuationMenuItem } from './AgentSessionContinuationMenuItem'
+import { AgentSessionContextCopyMenuItem } from './AgentSessionContextCopyMenuItem'
+import { ClearPaneTitleMenuItem } from './ClearPaneTitleMenuItem'
 import type { TerminalQuickCommandMenuHost } from '@/hooks/use-terminal-quick-command-hosts'
 import { TerminalQuickCommandsSubmenu } from './TerminalQuickCommandsSubmenu'
 
@@ -53,6 +55,7 @@ type TerminalContextMenuProps = {
   onEqualizePaneSizes: () => void
   onClosePane: () => void
   onClearScreen: () => void
+  onResetTerminal: () => void
   canContinueAgentSessionInNewSession: boolean
   onContinueAgentSessionInNewSession: () => void
   onForkAgentSession: () => void
@@ -144,6 +147,7 @@ function TerminalContextMenuItems({
   onEqualizePaneSizes,
   onClosePane,
   onClearScreen,
+  onResetTerminal,
   canContinueAgentSessionInNewSession,
   onContinueAgentSessionInNewSession,
   onForkAgentSession,
@@ -222,21 +226,18 @@ function TerminalContextMenuItems({
           'Fork Agent Session…'
         )}
       </DropdownMenuItem>
-      <DropdownMenuItem onSelect={onCopyAgentSessionContext}>
-        <ClipboardCopy />
-        {translate('auto.components.terminal.pane.TerminalContextMenu.cff67afad1', 'Copy Context')}
-      </DropdownMenuItem>
+      <AgentSessionContextCopyMenuItem onSelect={onCopyAgentSessionContext} />
       {canToggleNativeChat ? (
         <DropdownMenuItem onSelect={onToggleNativeChat}>
           {isNativeChatView ? <SquareTerminal /> : <MessageSquare />}
           {isNativeChatView
             ? translate(
                 'components.tab.bar.SortableTabContextMenu.switchToTerminalView',
-                'Switch to terminal view'
+                'Continue with Terminal Agent'
               )
             : translate(
                 'components.tab.bar.SortableTabContextMenu.switchToChatView',
-                'Switch to chat view'
+                'Continue in Chat UI'
               )}
           <DropdownMenuShortcut>{shortcuts.nativeChat}</DropdownMenuShortcut>
         </DropdownMenuItem>
@@ -288,8 +289,7 @@ function TerminalContextMenuItems({
       <DropdownMenuSeparator />
       <DropdownMenuItem
         onSelect={() => {
-          // Why: Set Title moves focus into an overlay input. Force-close
-          // before opening it so the menu's focus guards are not still active.
+          // Close focus guards before opening the title editor overlay.
           onOpenChange(false)
           onSetTitle()
         }}
@@ -301,16 +301,10 @@ function TerminalContextMenuItems({
         ) : null}
       </DropdownMenuItem>
       {canClearPaneTitle ? (
-        <DropdownMenuItem onSelect={onClearPaneTitle}>
-          <X />
-          {translate(
-            'auto.components.terminal.pane.TerminalContextMenu.clearPaneTitle',
-            'Clear Pane Title'
-          )}
-          {showClearPaneTitleShortcut ? (
-            <DropdownMenuShortcut>{shortcuts.clearPaneTitle}</DropdownMenuShortcut>
-          ) : null}
-        </DropdownMenuItem>
+        <ClearPaneTitleMenuItem
+          onSelect={onClearPaneTitle}
+          shortcut={showClearPaneTitleShortcut ? shortcuts.clearPaneTitle : undefined}
+        />
       ) : null}
       {canCopyAgentSessionId ? (
         <DropdownMenuItem onSelect={onCopyAgentSessionId}>
@@ -349,6 +343,13 @@ function TerminalContextMenuItems({
       <DropdownMenuItem onSelect={onClearScreen}>
         <Eraser />
         {translate('auto.components.terminal.pane.TerminalContextMenu.b4cdd9314e', 'Clear Screen')}
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={onResetTerminal}>
+        <RotateCcw />
+        {translate(
+          'auto.components.terminal.pane.TerminalContextMenu.resetTerminal',
+          'Reset Terminal'
+        )}
       </DropdownMenuItem>
     </>
   )

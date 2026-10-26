@@ -24,6 +24,8 @@ type Props = {
   keyboardType?: KeyboardTypeOptions
   onSubmit: (value: string) => void
   onCancel: () => void
+  /** Called once the drawer has gone, which is when the field stops holding the focus. */
+  onAfterClose?: () => void
 }
 
 export function TextInputModal({
@@ -37,14 +39,14 @@ export function TextInputModal({
   allowEmpty = false,
   keyboardType,
   onSubmit,
-  onCancel
+  onCancel,
+  onAfterClose
 }: Props) {
   const [value, setValue] = useState(defaultValue)
   const [previousVisible, setPreviousVisible] = useState(visible)
   const [previousDefaultValue, setPreviousDefaultValue] = useState(defaultValue)
 
-  // Why: reset before the opening commit so the drawer never paints the
-  // previous modal value while preserving the existing close animation state.
+  // Reset before opening commit to prevent previous-value flash; preserve close-animation state.
   const shouldResetValue = visible && (!previousVisible || defaultValue !== previousDefaultValue)
   if (visible !== previousVisible || shouldResetValue) {
     setPreviousVisible(visible)
@@ -64,7 +66,7 @@ export function TextInputModal({
   const canSubmit = allowEmpty || value.trim().length > 0
 
   return (
-    <BottomDrawer visible={visible} onClose={onCancel}>
+    <BottomDrawer visible={visible} onClose={onCancel} onAfterClose={onAfterClose}>
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
         {message ? <Text style={styles.message}>{message}</Text> : null}
@@ -124,10 +126,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2
   },
-  // Why: matches NewWorktreeModal's input — bgRaised on the modal
-  // background reads as a tappable surface (brighter than the wrapper)
-  // rather than a recessed pit (darker than the wrapper, which is what
-  // bgBase looked like inside a bgPanel group).
+  // Match workspace input: bgRaised on bgPanel reads tappable; bgBase looked recessed.
   input: {
     backgroundColor: colors.bgRaised,
     color: colors.textPrimary,
