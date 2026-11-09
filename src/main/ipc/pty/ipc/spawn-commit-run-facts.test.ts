@@ -83,7 +83,7 @@ describe('renderer spawn commit: run facts', () => {
     async (saved) => {
       const register = vi
         .spyOn(agentHookServer, 'registerAmplifierAgentSession')
-        .mockImplementation(() => {})
+        .mockResolvedValue(undefined)
       let savedBinding = false
       const persist = vi.fn(async () => {
         expect(register).not.toHaveBeenCalled()
@@ -104,7 +104,7 @@ describe('renderer spawn commit: run facts', () => {
           ORCA_AGENT_LAUNCH_TOKEN: String(ctx.args.launchToken)
         }
         ctx.amplifierAgentSessionId = 'spawned-session'
-        register.mockImplementation(() => {
+        register.mockImplementation(async () => {
           expect(savedBinding).toBe(true)
         })
       })
@@ -135,7 +135,7 @@ describe('renderer spawn commit: run facts', () => {
         })
       const register = vi
         .spyOn(agentHookServer, 'registerAmplifierAgentSession')
-        .mockImplementation(() => {})
+        .mockResolvedValue(undefined)
       const persist = vi.fn(async () => {
         expect(restored).not.toHaveBeenCalled()
         if (!saved) {

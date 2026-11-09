@@ -6,7 +6,7 @@ import { hookRootAnswerDeadline } from '../../../shared/agent-hook-listener/pres
 import { AgentHookServerAmplifierAgentSettlement } from './server-amplifier-agent-settlement'
 import { ClaudeAgentViewBridge } from '../../claude/agent-view/agent-view-bridge'
 import { AmplifierBridgeTailer } from '../amplifier-bridge-tailer'
-import type { AmplifierAgentFeedOptions } from '../amplifier-agent-feed'
+import { prepareAmplifierAgentFeed, type AmplifierAgentFeedOptions } from '../amplifier-agent-feed'
 import type { AmplifierAgentWrapperBinding } from '../../../shared/amplifier-agent-turn-settlement'
 import {
   persistAmplifierAgentWrapperBinding,
@@ -85,6 +85,13 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
     const generation = this.statusHookGeneration
     const previous = this.amplifierAgentWrappers.get(paneKey)
     const wrapper = await restoreAmplifierAgentWrapperBinding(this.endpointDir, paneKey, terminal)
+    const feed = wrapper
+      ? await prepareAmplifierAgentFeed(wrapper.cwd, wrapper.sessionId, {
+          home: wrapper.home,
+          workspace: wrapper.workspace,
+          resume: true
+        })
+      : undefined
     if (
       !wrapper ||
       !isCurrent() ||
@@ -94,12 +101,16 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
     ) {
       return
     }
-    this.registerAmplifierAgentSession(paneKey, wrapper.cwd, wrapper.sessionId, {
+    await this.registerAmplifierAgentSession(paneKey, wrapper.cwd, wrapper.sessionId, {
       home: wrapper.home,
       workspace: wrapper.workspace,
       resume: true,
-      launchToken: wrapper.launchToken
+      launchToken: wrapper.launchToken,
+      feed
     })
+    if (!isCurrent() || generation !== this.statusHookGeneration) {
+      return
+    }
     this.amplifierAgentWrappers.set(paneKey, {
       wrapperId: wrapper.wrapperId,
       lastSettledTurn: 0,
@@ -110,15 +121,15 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
     this.ingestLiveFileRecord(record, isCurrent)
   )
 
-  registerAmplifierAgentSession(
+  async registerAmplifierAgentSession(
     paneKey: string,
     cwd: string,
     sessionId: string,
     options?: AmplifierAgentFeedOptions
-  ): void {
+  ): Promise<void> {
     const resolvedPaneKey = this.resolvePaneKeyAlias(paneKey)
     this.unregisterAmplifierAgentSession(resolvedPaneKey)
-    this.amplifierAgentBridgeTailer.registerSession(resolvedPaneKey, cwd, sessionId, options)
+    await this.amplifierAgentBridgeTailer.registerSession(resolvedPaneKey, cwd, sessionId, options)
   }
 
   unregisterAmplifierAgentSession(paneKey: string): void {
@@ -221,8 +232,10 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
     }
     if (isCurrent()) {
       // Existing bytes are history, not observations of this enabled lifecycle.
-      this.amplifierBridgeTailer.start({ skipExisting: true })
-      this.amplifierAgentBridgeTailer.start({ skipExisting: true })
+      await this.amplifierBridgeTailer.start({ skipExisting: true })
+      if (isCurrent()) {
+        await this.amplifierAgentBridgeTailer.start({ skipExisting: true })
+      }
     }
   }
 }

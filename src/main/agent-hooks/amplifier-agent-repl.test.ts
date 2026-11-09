@@ -5,9 +5,17 @@ import { tmpdir } from 'node:os'
 import { createServer, type Socket } from 'node:net'
 import { once } from 'node:events'
 import { spawnProcess } from '@orca/process-host'
-import { AgentHookServer } from './server/agent-hook-server'
+import { agentHookServer } from './server/agent-hook-server'
 import { makePaneKey } from '../../shared/workspace-layout/stable-pane-id'
 import { consumeAmplifierAgentTurnSettlementOutput } from '../../shared/amplifier-agent-turn-settlement'
+import {
+  beginAmplifierAgentPtyLaunch,
+  clearAmplifierAgentPtyIngress,
+  consumeAmplifierAgentPtyOutput,
+  publishAmplifierAgentPtyIngress
+} from '../ipc/pty/provider/amplifier-agent-turn-ingress'
+import { rememberPaneKeyForPty, ptyPaneKey, paneKeyPtyId } from '../ipc/pty/pane/key-state'
+import { ptyIncarnationById } from '../ipc/pty/provider/ownership-state'
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -18,6 +26,7 @@ function deferred<T>() {
 }
 
 async function fixture() {
+  vi.useFakeTimers({ toFake: ['Date'], now: 1_800_000_000_000 })
   const directory = realpathSync(mkdtempSync(join(tmpdir(), 'orca-wrapper-runtime-')))
   const home = join(directory, 'custom-home')
   const bin = join(directory, 'bin')
@@ -69,13 +78,19 @@ socket.once('data', (code) => {
     { mode: 0o755 }
   )
   const paneKey = makePaneKey('tab-wrapper', '11111111-1111-4111-8111-111111111111')
-  const server = new AgentHookServer()
+  const server = agentHookServer
   await server.start({ userDataPath: directory })
-  server.registerAmplifierAgentSession(paneKey, directory, 'session-1', {
+  const launch = await beginAmplifierAgentPtyLaunch({
+    paneKey,
+    cwd: directory,
+    sessionId: 'session-1',
+    expectedPtyId: 'pty-wrapper',
+    resume: false,
     home,
     launchToken: 'wrapper-launch'
   })
   const terminal = { ptyId: 'pty-wrapper', incarnationId: 'inc-wrapper' }
+  let published = false
   const bound = deferred<void>()
   let settled = deferred<void>()
   let pending = ''
@@ -101,9 +116,11 @@ socket.once('data', (code) => {
     stderr += chunk.toString()
     const output = consumeAmplifierAgentTurnSettlementOutput(pending, chunk.toString())
     pending = output.pending
+    if (!published) {
+      consumeAmplifierAgentPtyOutput(terminal.ptyId, chunk.toString())
+    }
     ingress = ingress.then(async () => {
-      for (const binding of output.bindings) {
-        await server.observeAmplifierAgentWrapper(paneKey, binding, terminal, () => true)
+      if (output.bindings.length) {
         bound.resolve()
       }
       for (const marker of output.settlements) {
@@ -125,12 +142,31 @@ socket.once('data', (code) => {
       socket.destroy()
     }
     listener.close()
+    clearAmplifierAgentPtyIngress()
+    ptyPaneKey.delete(terminal.ptyId)
+    paneKeyPtyId.delete(paneKey)
+    ptyIncarnationById.delete(terminal.ptyId)
     server.stop()
     vi.useRealTimers()
     await closed
     rmSync(directory, { recursive: true, force: true })
   })
   await bound.promise
+  rememberPaneKeyForPty(terminal.ptyId, paneKey)
+  ptyIncarnationById.set(terminal.ptyId, terminal.incarnationId)
+  await server.registerAmplifierAgentSession(paneKey, directory, 'session-1', {
+    home,
+    launchToken: launch.launchToken,
+    feed: launch.feed
+  })
+  await publishAmplifierAgentPtyIngress(
+    launch,
+    terminal.ptyId,
+    paneKey,
+    terminal.incarnationId,
+    'session-1'
+  )
+  published = true
   return {
     server,
     child,
@@ -158,9 +194,14 @@ describe.skipIf(process.platform === 'win32')('persistent wrapper runtime', () =
     f.child.stdin.end('\x1b[201~\n')
     const engine = await start
     expect(engine.args.at(-1)).toBe(' first line\nsecond line ')
-    engine.release()
+    engine.release(7)
     expect((await f.closed)[0], f.stderr()).toBe(0)
     await f.ingress()
+    expect(f.server.getStatusSnapshotForPane(f.paneKey)[0]).toMatchObject({
+      subagents: [
+        expect.objectContaining({ id: ' first line\nsecond line ', state: 'unverifiable' })
+      ]
+    })
   })
 
   it('serializes newline-separated pasted prompts, preserving every line and resuming the session', async () => {
@@ -191,7 +232,6 @@ describe.skipIf(process.platform === 'win32')('persistent wrapper runtime', () =
     a.release()
     await settled
     f.server.stop()
-    vi.useFakeTimers()
     await f.server.start({ userDataPath: f.directory })
     const register = vi.spyOn(f.server, 'registerAmplifierAgentSession')
     await f.server.restoreAmplifierAgentSessionForPty(
@@ -202,21 +242,27 @@ describe.skipIf(process.platform === 'win32')('persistent wrapper runtime', () =
     await f.server.restoreAmplifierAgentSessionForPty(f.paneKey, f.terminal, () => false)
     expect(register).not.toHaveBeenCalled()
     await f.server.restoreAmplifierAgentSessionForPty(f.paneKey, f.terminal, () => true)
-    expect(register).toHaveBeenCalledExactlyOnceWith(f.paneKey, f.directory, 'session-1', {
-      home: f.home,
-      workspace: f.directory.split('/').at(-1),
-      resume: true,
-      launchToken: 'wrapper-launch'
-    })
+    expect(register).toHaveBeenCalledExactlyOnceWith(
+      f.paneKey,
+      f.directory,
+      'session-1',
+      expect.objectContaining({
+        home: f.home,
+        workspace: f.directory.split('/').at(-1),
+        resume: true,
+        launchToken: 'wrapper-launch'
+      })
+    )
     expect(f.server.getStatusChangeSnapshot()[0]?.observedInCurrentRuntime).not.toBe(true)
     const second = f.nextStart()
     f.child.stdin.write('turn-b\n')
     const b = await second
-    await vi.advanceTimersByTimeAsync(300)
-    expect(f.server.getStatusSnapshotForPane(f.paneKey)[0]).toMatchObject({
-      state: 'working',
-      subagents: [expect.objectContaining({ id: 'turn-b', state: 'working' })]
-    })
+    await expect
+      .poll(() => f.server.getStatusSnapshotForPane(f.paneKey)[0])
+      .toMatchObject({
+        state: 'working',
+        subagents: [expect.objectContaining({ id: 'turn-b', state: 'working' })]
+      })
     expect(f.server.getStatusChangeSnapshot()[0]?.observedInCurrentRuntime).toBe(true)
     b.release(7)
     f.child.stdin.end()

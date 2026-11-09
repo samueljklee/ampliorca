@@ -11,7 +11,7 @@ import {
 } from './amplifier-agent-bridge-tailer'
 
 beforeEach(() => {
-  vi.useFakeTimers()
+  vi.useFakeTimers({ toFake: ['Date'], now: 1_800_000_000_000 })
 })
 
 afterEach(() => {
@@ -72,16 +72,16 @@ describe('AmplifierAgentBridgeTailer', () => {
     mkdirSync(dirname(file), { recursive: true })
     writeFileSync(file, event())
     const { tailer, ingested } = makeTailer('/unused-default-home')
-    tailer.registerSession('tab-1:0', '/new/location', 'session-1', {
+    await tailer.registerSession('tab-1:0', '/new/location', 'session-1', {
       home,
       resume: true,
       launchToken: 'current-launch'
     })
-    tailer.start()
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.start()
+    await tailer.flush()
     expect(ingested).toEqual([])
     appendFileSync(file, event({ turn_id: 'turn-2' }))
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.flush()
     tailer.stop()
     expect(ingested).toEqual([
       expect.objectContaining({
@@ -97,20 +97,22 @@ describe('AmplifierAgentBridgeTailer', () => {
     mkdirSync(dirname(file), { recursive: true })
     writeFileSync(file, event())
     const applied: SpoolRecord[] = []
+    const entered = Promise.withResolvers<void>()
     let release!: () => void
     const blocked = new Promise<void>((resolve) => {
       release = resolve
     })
     const tailer = new AmplifierAgentBridgeTailer(async (entry, isCurrent) => {
+      entered.resolve()
       await blocked
       if (isCurrent()) {
         applied.push(entry)
       }
     }, home)
-    tailer.registerSession('tab-1:0', '/repo/project', 'session-1')
-    tailer.start()
-    await vi.advanceTimersByTimeAsync(300)
-    tailer.registerSession('tab-1:0', '/repo/project', 'session-2')
+    await tailer.registerSession('tab-1:0', '/repo/project', 'session-1')
+    await tailer.start()
+    await entered.promise
+    await tailer.registerSession('tab-1:0', '/repo/project', 'session-2')
     release()
     await tailer.flush()
     tailer.stop()
@@ -126,9 +128,9 @@ describe('AmplifierAgentBridgeTailer', () => {
     writeFileSync(file, event())
     const { tailer, ingested } = makeTailer(home)
 
-    tailer.registerSession('tab-1:0', cwd, sessionId)
-    tailer.start()
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.registerSession('tab-1:0', cwd, sessionId)
+    await tailer.start()
+    await tailer.flush()
 
     expect(ingested).toEqual([
       {
@@ -142,7 +144,7 @@ describe('AmplifierAgentBridgeTailer', () => {
 
     tailer.unregisterSession('tab-1:0')
     appendFileSync(file, event({ turn_id: 'turn-2' }))
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.flush()
     tailer.stop()
 
     expect(ingested).toHaveLength(1)
@@ -156,11 +158,11 @@ describe('AmplifierAgentBridgeTailer', () => {
     writeFileSync(file, event())
     const { tailer, ingested } = makeTailer(home)
 
-    tailer.registerSession('tab-1:0', cwd, 'session-1')
-    tailer.start()
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.registerSession('tab-1:0', cwd, 'session-1')
+    await tailer.start()
+    await tailer.flush()
     appendFileSync(file, event({ turn_id: 'turn-2' }))
-    await vi.advanceTimersByTimeAsync(600)
+    await tailer.flush()
     tailer.stop()
 
     expect(ingested.map((record) => record.payload)).toEqual([
@@ -178,13 +180,13 @@ describe('AmplifierAgentBridgeTailer', () => {
     writeFileSync(file, whole + whole.slice(0, -1))
     const { tailer, ingested } = makeTailer(home)
 
-    tailer.registerSession('tab-1:0', cwd, 'session-1')
-    tailer.start()
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.registerSession('tab-1:0', cwd, 'session-1')
+    await tailer.start()
+    await tailer.flush()
     expect(ingested).toHaveLength(1)
 
     appendFileSync(file, '\n')
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.flush()
     tailer.stop()
 
     expect(ingested).toHaveLength(2)

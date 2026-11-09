@@ -31,10 +31,7 @@ import { excludeReplacedPaneOwner } from './pane/replaced-pane-owner'
 import { attachViewWithoutOwner } from './pane/attach-only-view'
 import { wslBridgePtyPresence } from '../../agent-hooks/wsl-relay/wsl-bridge-pty-presence'
 import { isWslTerminalSpawn } from './wsl-terminal-spawn'
-import {
-  beginAmplifierAgentPtyLaunch,
-  releaseAmplifierAgentPtyLaunch
-} from './provider/amplifier-agent-turn-ingress'
+import { captureAmplifierAgentSpawnFeed } from './spawn-amplifier-agent-feed'
 
 export async function executePtySpawn(
   ctx: PtySpawnOperationState,
@@ -99,34 +96,6 @@ export async function executePtySpawn(
         throw new Error('client_disconnected')
       }
       facts.beforeProviderSpawn?.()
-      const env = ctx.spawnOptions.env
-      const launchToken = args.launchToken
-      if (
-        args.launchAgent === 'amplifier-agent' &&
-        !args.connectionId &&
-        !ctx.expectedWslDistro &&
-        !isWslTerminalSpawn(ctx.spawnOptions.shellOverride, ctx.spawnOptions.cwd) &&
-        facts.paneKey &&
-        ctx.cwd &&
-        ctx.amplifierAgentSessionId &&
-        typeof launchToken === 'string' &&
-        launchToken.length > 0 &&
-        launchToken.length <= 128 &&
-        env?.ORCA_AGENT_LAUNCH_TOKEN === launchToken
-      ) {
-        releaseAmplifierAgentPtyLaunch(ctx.amplifierAgentPtyLaunch)
-        ctx.amplifierAgentPtyLaunch = beginAmplifierAgentPtyLaunch({
-          paneKey: facts.paneKey,
-          sessionId: ctx.amplifierAgentSessionId,
-          launchToken,
-          expectedPtyId,
-          cwd: ctx.cwd,
-          home: env.AMPLIFIER_AGENT_HOME ?? process.env.AMPLIFIER_AGENT_HOME,
-          resume:
-            Boolean(args.resumeProviderSession) ||
-            /(?:^|\s)--resume(?:\s|$)/.test(ctx.spawnOptions.command ?? '')
-        })
-      }
     }
     if (args.agentSessionEnsure && !ctx.preAdoptedStablePane) {
       // Claims can outlive this controller; import authoritative owner listings before deciding absence.
@@ -158,6 +127,7 @@ export async function executePtySpawn(
             if (refusal) {
               throw new SavedResumeFreshRefusal(refusal)
             }
+            await captureAmplifierAgentSpawnFeed(ctx, facts, expectedPtyId)
             validateDispatch()
             providerResult = await ctx.provider.spawn(ctx.spawnOptions)
             ctx.rejectedRegistrationCandidate = providerResult
@@ -195,6 +165,7 @@ export async function executePtySpawn(
         facts.suppressRefusedLaunch?.()
         delete args.agentSessionEnsure
         delete ctx.spawnOptions.agentSessionEnsure
+        await captureAmplifierAgentSpawnFeed(ctx, facts, expectedPtyId)
         validateDispatch()
         providerResult = await ctx.provider.spawn(ctx.spawnOptions)
         facts.reportPtySpawnCommitted?.()
@@ -219,6 +190,7 @@ export async function executePtySpawn(
       if (!facts.attachOnlyView) {
         await chooseFresh()
       }
+      await captureAmplifierAgentSpawnFeed(ctx, facts, expectedPtyId)
       validateDispatch()
       ctx.result = facts.attachOnlyView
         ? await attachViewWithoutOwner(ctx.provider, ctx.spawnOptions)

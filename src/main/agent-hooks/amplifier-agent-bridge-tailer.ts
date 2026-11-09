@@ -1,4 +1,7 @@
-import { closeSync, openSync, readSync, statSync } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import { dirname } from 'node:path'
+import { BridgeFeedWakeup } from './bridge-feed-wakeup'
+import { readBridgeFeedLines } from './bridge-feed-lines'
 
 import type { SpoolRecord } from '../../shared/agent-hook-listener/transport/agent-hook-spool'
 import {
@@ -8,7 +11,6 @@ import {
 } from './amplifier-agent-feed'
 
 export { amplifierAgentEventsPath, amplifierAgentWorkspaceSlug } from './amplifier-agent-feed'
-const POLL_INTERVAL_MS = 300
 
 type RegisteredSession = {
   paneKey: string
@@ -22,9 +24,15 @@ export class AmplifierAgentBridgeTailer {
   private readonly ingest: (record: SpoolRecord, isCurrent: () => boolean) => void | Promise<void>
   private readonly amplifierAgentHome: string
   private readonly sessionsByPath = new Map<string, RegisteredSession>()
-  private timer: ReturnType<typeof setInterval> | null = null
+  private active = false
   private generation = 0
-  private polling: Promise<void> | null = null
+  private starting: Promise<void> | null = null
+  private readonly registrations = new Map<string, symbol>()
+  private readonly wakeup = new BridgeFeedWakeup(
+    () => [...this.sessionsByPath.keys()].map(dirname),
+    () => this.pollOnce(this.generation),
+    (error) => console.error('[amplifier-agent-bridge] read failed', error)
+  )
 
   constructor(
     ingest: (record: SpoolRecord, isCurrent: () => boolean) => void | Promise<void>,
@@ -34,22 +42,28 @@ export class AmplifierAgentBridgeTailer {
     this.amplifierAgentHome = amplifierAgentHome
   }
 
-  registerSession(
+  async registerSession(
     paneKey: string,
     cwd: string,
     sessionId: string,
     options?: AmplifierAgentFeedOptions
-  ): void {
+  ): Promise<void> {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,255}$/.test(sessionId)) {
       return
     }
     this.unregisterSession(paneKey)
+    const registration = Symbol()
+    const generation = this.generation
+    this.registrations.set(paneKey, registration)
     const { path, offset } =
       options?.feed ??
-      prepareAmplifierAgentFeed(cwd, sessionId, {
+      (await prepareAmplifierAgentFeed(cwd, sessionId, {
         home: this.amplifierAgentHome,
         ...options
-      })
+      }))
+    if (generation !== this.generation || this.registrations.get(paneKey) !== registration) {
+      return
+    }
     this.sessionsByPath.set(path, {
       paneKey,
       sessionId,
@@ -57,6 +71,7 @@ export class AmplifierAgentBridgeTailer {
       offset,
       delegateOffsets: new Map()
     })
+    this.wakeup.wake()
   }
 
   admitWrapper(paneKey: string, sessionId: string): { launchToken?: string } | undefined {
@@ -95,137 +110,124 @@ export class AmplifierAgentBridgeTailer {
   }
 
   unregisterSession(paneKey: string, resolvePaneKey: (key: string) => string = (key) => key): void {
+    for (const key of this.registrations.keys()) {
+      if (resolvePaneKey(key) === paneKey) {
+        this.registrations.delete(key)
+      }
+    }
     for (const [path, session] of this.sessionsByPath) {
       if (resolvePaneKey(session.paneKey) === paneKey) {
         this.sessionsByPath.delete(path)
       }
     }
+    this.wakeup.wake()
   }
 
   unregisterTab(tabId: string): void {
+    for (const key of this.registrations.keys()) {
+      if (key.startsWith(`${tabId}:`)) {
+        this.registrations.delete(key)
+      }
+    }
     for (const [path, session] of this.sessionsByPath) {
       if (session.paneKey.startsWith(`${tabId}:`)) {
         this.sessionsByPath.delete(path)
       }
     }
+    this.wakeup.wake()
   }
 
-  start(options?: { skipExisting?: boolean }): void {
-    if (this.timer) {
-      return
+  async start(options?: { skipExisting?: boolean }): Promise<void> {
+    if (this.active) {
+      return this.starting ?? undefined
     }
-    if (options?.skipExisting) {
-      for (const [path, session] of this.sessionsByPath) {
-        try {
-          session.offset = statSync(path).size
-        } catch {
-          /* No feed yet. */
+    this.active = true
+    const generation = this.generation
+    const pending = (async () => {
+      if (options?.skipExisting) {
+        for (const [path, session] of this.sessionsByPath) {
+          const size = await stat(path).then(
+            (entry) => entry.size,
+            () => 0
+          )
+          if (generation !== this.generation) {
+            return
+          }
+          if (this.sessionsByPath.get(path) === session) {
+            session.offset = size
+          }
         }
       }
-    }
-    this.timer = setInterval(() => {
-      if (!this.polling) {
-        void this.flush().catch((error: unknown) =>
-          console.error('[amplifier-agent-bridge] poll failed', error)
-        )
+      if (this.active && generation === this.generation) {
+        this.wakeup.start()
       }
-    }, POLL_INTERVAL_MS)
-    this.timer.unref()
+    })()
+    this.starting = pending
+    await pending
   }
 
   stop(clearSessions = false): void {
     this.generation += 1
-    if (this.timer) {
-      clearInterval(this.timer)
-      this.timer = null
-    }
+    this.active = false
+    this.starting = null
+    this.registrations.clear()
+    this.wakeup.stop()
     if (clearSessions) {
       this.sessionsByPath.clear()
     }
   }
 
   async flush(): Promise<void> {
-    if (this.polling) {
-      await this.polling
-      return this.flush()
-    }
-    if (!this.timer) {
-      return
-    }
-    const pending = this.pollOnce(this.generation)
-    this.polling = pending
-    try {
-      await pending
-    } finally {
-      if (this.polling === pending) {
-        this.polling = null
-      }
-    }
+    await this.starting
+    await this.wakeup.flush()
   }
 
-  private async pollOnce(generation: number): Promise<void> {
+  private async pollOnce(generation: number): Promise<boolean> {
+    let changed = false
     for (const [path, session] of this.sessionsByPath) {
       if (generation !== this.generation) {
-        return
+        return changed
       }
-      await this.pollFile(path, session, generation)
+      changed = (await this.pollFile(path, session, generation)) || changed
     }
+    return changed
   }
 
   private async pollFile(
     path: string,
     session: RegisteredSession,
     generation: number
-  ): Promise<void> {
-    let size: number
-    try {
-      size = statSync(path).size
-    } catch {
-      return
-    }
+  ): Promise<boolean> {
+    const isCurrent = () =>
+      this.active && generation === this.generation && this.sessionsByPath.get(path) === session
     const previousOffset = session.offset
-    if (size <= previousOffset) {
-      if (size < previousOffset) {
-        session.offset = size
-      }
-      return
-    }
-    let fd: number
     try {
-      fd = openSync(path, 'r')
-    } catch {
-      return
-    }
-    try {
-      const toRead = size - previousOffset
-      const buffer = Buffer.alloc(toRead)
-      readSync(fd, buffer, 0, toRead, previousOffset)
-      const lines = buffer.toString('utf8').split('\n')
-      const completeLines = lines.slice(0, -1)
-      let consumedBytes = 0
-      for (const line of completeLines) {
-        if (generation !== this.generation || this.sessionsByPath.get(path) !== session) {
-          return
-        }
-        consumedBytes += Buffer.byteLength(line, 'utf8') + 1
-        if (line.length > 0) {
-          const pending = this.processLine(
-            line,
-            session,
-            previousOffset + consumedBytes,
-            () => generation === this.generation && this.sessionsByPath.get(path) === session
-          )
-          if (pending) {
-            await pending
+      const offset = await readBridgeFeedLines(
+        path,
+        previousOffset,
+        isCurrent,
+        async (line, through) => {
+          if (line) {
+            await this.processLine(line, session, through, isCurrent)
+          }
+          if (isCurrent()) {
+            session.offset = through
           }
         }
-        if (generation !== this.generation || this.sessionsByPath.get(path) !== session) {
-          return
-        }
-        session.offset = previousOffset + consumedBytes
+      )
+      if (isCurrent()) {
+        session.offset = offset
       }
-    } finally {
-      closeSync(fd)
+      return offset !== previousOffset
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+      ) {
+        return false
+      }
+      throw error
     }
   }
 

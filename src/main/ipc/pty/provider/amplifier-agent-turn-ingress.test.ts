@@ -37,7 +37,7 @@ describe('headless amplifier-agent child-exit ingress', () => {
     const paneKey = makePaneKey('tab-headless', '11111111-1111-4111-8111-111111111111')
     rememberPaneKeyForPty('pty-headless', paneKey)
     ptyIncarnationById.set('pty-headless', 'inc-1')
-    agentHookServer.registerAmplifierAgentSession(paneKey, directory, 'current-session', {
+    await agentHookServer.registerAmplifierAgentSession(paneKey, directory, 'current-session', {
       home: directory
     })
     const file = amplifierAgentEventsPath(directory, directory, 'current-session')

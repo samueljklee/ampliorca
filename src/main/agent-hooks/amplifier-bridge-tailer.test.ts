@@ -1,15 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdtempSync, appendFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, appendFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { SpoolRecord } from '../../shared/agent-hook-listener/transport/agent-hook-spool'
 import { AmplifierBridgeTailer } from './amplifier-bridge-tailer'
 
-// Why fake timers, not real sleeps: the tailer polls on a 300ms interval --
-// advancing fake time makes every test instant and deterministic instead of
-// paying (and risking flakiness on) a real wall-clock wait per assertion.
 beforeEach(() => {
-  vi.useFakeTimers()
+  vi.useFakeTimers({ toFake: ['Date'], now: 1_800_000_000_000 })
 })
 afterEach(() => {
   vi.useRealTimers()
@@ -44,18 +41,18 @@ describe('AmplifierBridgeTailer', () => {
     const file = join(dir, 'sess-1.jsonl')
     writeFileSync(file, record())
     const { tailer, ingested } = makeTailer(dir)
-    tailer.start({ skipExisting: true })
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.start({ skipExisting: true })
+    await tailer.flush()
     expect(ingested).toHaveLength(0)
     appendFileSync(file, record({ type: 'turn_end' }))
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.flush()
     tailer.stop()
     appendFileSync(file, record({ type: 'turn_start' }))
-    tailer.start({ skipExisting: true })
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.start({ skipExisting: true })
+    await tailer.flush()
     expect(ingested.map((entry) => entry.hookEventName)).toEqual(['turn_end'])
     appendFileSync(file, record({ type: 'tool_start' }))
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.flush()
     tailer.stop()
     expect(ingested.map((entry) => entry.hookEventName)).toEqual(['turn_end', 'tool_start'])
   })
@@ -65,23 +62,25 @@ describe('AmplifierBridgeTailer', () => {
     writeFileSync(join(dir, 'sess-1.jsonl'), record() + record({ type: 'turn_end' }))
     const entered: string[] = []
     const applied: string[] = []
+    const firstEntry = Promise.withResolvers<void>()
     let release!: () => void
     const blocked = new Promise<void>((resolve) => {
       release = resolve
     })
     const tailer = new AmplifierBridgeTailer(async (entry, isCurrent) => {
       entered.push(entry.hookEventName ?? '')
+      firstEntry.resolve()
       await blocked
       if (isCurrent()) {
         applied.push(entry.hookEventName ?? '')
       }
     }, dir)
-    tailer.start()
-    await vi.advanceTimersByTimeAsync(600)
+    await tailer.start()
+    await firstEntry.promise
     expect(entered).toEqual(['agent_start'])
     tailer.stop()
     release()
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.flush()
     expect(applied).toEqual([])
     expect(entered).toEqual(['agent_start'])
   })
@@ -91,8 +90,8 @@ describe('AmplifierBridgeTailer', () => {
     writeFileSync(join(dir, 'sess-1.jsonl'), record())
     const { tailer, ingested } = makeTailer(dir)
 
-    tailer.start()
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.start()
+    await tailer.flush()
     tailer.stop()
 
     expect(ingested).toEqual([
@@ -107,18 +106,18 @@ describe('AmplifierBridgeTailer', () => {
     ])
   })
 
-  it('picks up a line appended after start(), on the next poll tick', async () => {
+  it('observes a line appended after startup through its directory watch', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'orca-bridge-tailer-'))
     const file = join(dir, 'sess-1.jsonl')
     writeFileSync(file, '')
     const { tailer, ingested } = makeTailer(dir)
 
-    tailer.start()
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.start()
+    await tailer.flush()
     expect(ingested).toHaveLength(0)
 
     appendFileSync(file, record())
-    await vi.advanceTimersByTimeAsync(300)
+    await expect.poll(() => ingested.map((entry) => entry.hookEventName)).toEqual(['agent_start'])
     tailer.stop()
 
     expect(ingested).toHaveLength(1)
@@ -130,11 +129,11 @@ describe('AmplifierBridgeTailer', () => {
     writeFileSync(file, record({ seq: 0 }))
     const { tailer, ingested } = makeTailer(dir)
 
-    tailer.start()
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.start()
+    await tailer.flush()
     appendFileSync(file, record({ seq: 1 }))
-    await vi.advanceTimersByTimeAsync(300)
-    await vi.advanceTimersByTimeAsync(300) // a third, no-op tick -- nothing new appended
+    await tailer.flush()
+    await tailer.flush()
     tailer.stop()
 
     expect(ingested).toHaveLength(2)
@@ -154,12 +153,12 @@ describe('AmplifierBridgeTailer', () => {
     writeFileSync(file, torn)
     const { tailer, ingested } = makeTailer(dir)
 
-    tailer.start()
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.start()
+    await tailer.flush()
     expect(ingested).toHaveLength(1) // only the one COMPLETE line
 
     appendFileSync(file, '\n') // writer finally terminates the second record
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.flush()
     tailer.stop()
 
     expect(ingested).toHaveLength(2)
@@ -170,8 +169,8 @@ describe('AmplifierBridgeTailer', () => {
     writeFileSync(join(dir, 'sess-1.jsonl'), record({ pane_key: undefined }))
     const { tailer, ingested } = makeTailer(dir)
 
-    tailer.start()
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.start()
+    await tailer.flush()
     tailer.stop()
 
     expect(ingested).toHaveLength(0)
@@ -182,34 +181,37 @@ describe('AmplifierBridgeTailer', () => {
     writeFileSync(join(dir, 'not-a-feed.txt'), record())
     const { tailer, ingested } = makeTailer(dir)
 
-    tailer.start()
-    await vi.advanceTimersByTimeAsync(300)
+    await tailer.start()
+    await tailer.flush()
     tailer.stop()
 
     expect(ingested).toHaveLength(0)
   })
 
-  it('does not throw when the feed directory does not exist yet', () => {
+  it('discovers a feed directory created after startup', async () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'orca-bridge-tailer-')), 'does-not-exist')
     const { tailer, ingested } = makeTailer(dir)
 
-    tailer.start()
-    expect(() => vi.advanceTimersByTime(300)).not.toThrow()
+    await tailer.start()
+    await tailer.flush()
+    mkdirSync(dir)
+    writeFileSync(join(dir, 'new-session.jsonl'), record({ type: 'turn_start' }))
+    await expect.poll(() => ingested.map((entry) => entry.hookEventName)).toEqual(['turn_start'])
     tailer.stop()
 
-    expect(ingested).toHaveLength(0)
+    expect(ingested.map((entry) => entry.hookEventName)).toEqual(['turn_start'])
   })
 
-  it('stops polling once stop() is called', () => {
+  it('stops observing once stop() is called', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'orca-bridge-tailer-'))
     const file = join(dir, 'sess-1.jsonl')
     writeFileSync(file, '')
     const { tailer, ingested } = makeTailer(dir)
 
-    tailer.start()
+    await tailer.start()
     tailer.stop()
     appendFileSync(file, record())
-    vi.advanceTimersByTime(1000) // several ticks' worth -- none should fire
+    await tailer.flush()
 
     expect(ingested).toHaveLength(0)
   })

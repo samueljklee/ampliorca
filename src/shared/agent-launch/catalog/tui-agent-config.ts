@@ -5,6 +5,7 @@ import {
 } from '../../orca-cli-command-name'
 import type { TuiAgentConfig, TuiAgentConfigSource } from './tui-agent-config-types'
 import { AMPLIFIER_TUI_AGENT_CONFIG } from './amplifier-tui-agent-config'
+import { resolveTuiAgentConfigs } from './tui-agent-config-resolution'
 
 const TUI_AGENT_CONFIG_SOURCE: Record<TuiAgent, TuiAgentConfigSource> = {
   claude: {
@@ -326,16 +327,7 @@ const TUI_AGENT_CONFIG_SOURCE: Record<TuiAgent, TuiAgentConfigSource> = {
   jcode: { detectCmd: 'jcode', launchCmd: 'jcode', expectedProcess: 'jcode', promptInjectionMode: 'stdin-after-start' }
 }
 
-export const TUI_AGENT_CONFIG: Record<TuiAgent, TuiAgentConfig> = Object.fromEntries(
-  Object.entries(TUI_AGENT_CONFIG_SOURCE).map(([agent, source]) => [
-    agent,
-    {
-      ...source,
-      launchCmd: source.launchCmd ?? source.detectCmd,
-      expectedProcess: source.expectedProcess ?? source.detectCmd
-    }
-  ])
-) as Record<TuiAgent, TuiAgentConfig>
+export const TUI_AGENT_CONFIG = resolveTuiAgentConfigs(TUI_AGENT_CONFIG_SOURCE)
 
 export function isTuiAgent(value: unknown): value is TuiAgent {
   return typeof value === 'string' && Object.hasOwn(TUI_AGENT_CONFIG, value)

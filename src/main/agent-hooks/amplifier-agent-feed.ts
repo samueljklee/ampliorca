@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from 'node:fs'
+import { readdir, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 
@@ -36,11 +36,11 @@ export type AmplifierAgentFeedOptions = {
 }
 
 /** Capture resume history before execution, not after the binding's durable save. */
-export function prepareAmplifierAgentFeed(
+export async function prepareAmplifierAgentFeed(
   cwd: string,
   sessionId: string,
   options: AmplifierAgentFeedOptions = {}
-): AmplifierAgentFeed {
+): Promise<AmplifierAgentFeed> {
   const home = resolve(cwd, options.home ?? AMPLIFIER_AGENT_DEFAULT_HOME)
   let path = amplifierAgentEventsPath(home, cwd, sessionId)
   if (options.workspace && !/[/\\]/.test(options.workspace) && options.workspace !== '..') {
@@ -57,11 +57,18 @@ export function prepareAmplifierAgentFeed(
   } else if (options.resume) {
     const root = join(home, 'state', 'workspaces')
     try {
-      const workspace = readdirSync(root).find((name) =>
-        existsSync(join(root, name, 'sessions', sessionId))
-      )
-      if (workspace) {
-        path = join(root, workspace, 'sessions', sessionId, 'context-intelligence', 'events.jsonl')
+      for (const workspace of await readdir(root)) {
+        if (await stat(join(root, workspace, 'sessions', sessionId)).catch(() => null)) {
+          path = join(
+            root,
+            workspace,
+            'sessions',
+            sessionId,
+            'context-intelligence',
+            'events.jsonl'
+          )
+          break
+        }
       }
     } catch {
       // Match the REPL's basename fallback when the resumed session is missing.
@@ -70,7 +77,7 @@ export function prepareAmplifierAgentFeed(
   let offset = 0
   if (options.resume) {
     try {
-      offset = statSync(path).size
+      offset = (await stat(path)).size
     } catch {
       /* Session has no feed yet. */
     }

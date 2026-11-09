@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { chmod, mkdir, readFile, readdir, rename, rm } from 'node:fs/promises'
+import { access, chmod, mkdir, readFile, readdir, rename, rm } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -58,7 +58,12 @@ async function prepareAmplifierAgentLauncher(
   binDir: string
 ): Promise<void> {
   const entry = join(installRoot, ...ORCAD_AMPLIFIER_AGENT_REPL_ENTRY.split('/'))
-  if (!existsSync(entry)) {
+  if (
+    !(await access(entry).then(
+      () => true,
+      () => false
+    ))
+  ) {
     return
   }
   const windows = process.platform === 'win32'

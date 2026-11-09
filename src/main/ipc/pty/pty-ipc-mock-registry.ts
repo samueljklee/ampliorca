@@ -2,6 +2,7 @@ import { vi } from 'vitest'
 import type { Mock } from 'vitest'
 import type * as Wsl from '../../wsl/filesystem/unc-path-access'
 import type * as FsPromises from 'node:fs/promises'
+import type { AgentHookServer } from '../../agent-hooks/server/agent-hook-server'
 
 // vi.mock hoists per file; shared factories keep every split suite on the same spy instances.
 export const handleMock: Mock = vi.fn()
@@ -144,7 +145,9 @@ export const agentHookServerModuleMock = () => ({
     buildPtyEnv: buildAgentHookEnvMock,
     clearPaneState: clearAgentHookPaneStateMock,
     registerPaneKeyAlias: registerPaneKeyAliasMock,
-    registerAmplifierAgentSession: vi.fn(),
+    registerAmplifierAgentSession: vi
+      .fn<AgentHookServer['registerAmplifierAgentSession']>()
+      .mockResolvedValue(undefined),
     settleAmplifierAgentTurnForPane: vi.fn(async () => {}),
     observeAmplifierAgentWrapper: vi.fn(async () => {}),
     restoreAmplifierAgentSessionForPty: vi.fn(async () => {}),

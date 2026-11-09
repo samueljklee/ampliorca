@@ -1,36 +1,21 @@
-// Why: Amplifier is not a push-hook agent -- there is no hook script calling
-// out to this server. Its activity feed is a per-session JSONL file
-// (hooks-orca-bridge, an Amplifier-side module) that this tailer polls for
-// new appended lines and converts into the same SpoolRecord shape the
-// existing spool-replay path already knows how to ingest.
-//
-// Pane attribution does NOT need any reverse lookup: hooks-orca-bridge reads
-// ORCA_PANE_KEY directly from its own process environment (confirmed against
-// Orca's own source -- the same env var Orca's CLI handlers read via
-// process.env.ORCA_PANE_KEY) and carries it on every record as `pane_key`.
-// This deliberately avoids touching Orca's PTY-creation code at all.
-//
-// Polling, not fs.watch: fs.watch's cross-platform quirks (double-fires,
-// missed events under load, different semantics per OS) make it a worse fit
-// here than a small, predictable interval -- this is a low-frequency status
-// feed, not a hot path.
-
-import { closeSync, openSync, readSync, readdirSync, statSync } from 'node:fs'
+import { readdir, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { BridgeFeedWakeup } from './bridge-feed-wakeup'
+import { readBridgeFeedLines } from './bridge-feed-lines'
 
 import type { SpoolRecord } from '../../shared/agent-hook-listener/transport/agent-hook-spool'
 
 export const AMPLIFIER_BRIDGE_DEFAULT_FEED_DIR = join(homedir(), '.ampliorca', 'orca-bridge')
-const POLL_INTERVAL_MS = 300
 
 export class AmplifierBridgeTailer {
   private readonly feedDir: string
   private readonly ingest: (record: SpoolRecord, isCurrent: () => boolean) => void | Promise<void>
   private readonly offsetByPath = new Map<string, number>()
-  private timer: ReturnType<typeof setInterval> | null = null
+  private active = false
   private generation = 0
-  private polling = false
+  private starting: Promise<void> | null = null
+  private readonly wakeup: BridgeFeedWakeup
 
   constructor(
     ingest: (record: SpoolRecord, isCurrent: () => boolean) => void | Promise<void>,
@@ -38,119 +23,112 @@ export class AmplifierBridgeTailer {
   ) {
     this.ingest = ingest
     this.feedDir = feedDir
+    this.wakeup = new BridgeFeedWakeup(
+      () => [this.feedDir],
+      () => this.pollOnce(this.generation),
+      (error) => console.error('[amplifier-bridge] read failed', error)
+    )
   }
 
-  start(options?: { skipExisting?: boolean }): void {
-    if (this.timer) {
-      return
+  async start(options?: { skipExisting?: boolean }): Promise<void> {
+    if (this.active) {
+      return this.starting ?? undefined
     }
-    if (options?.skipExisting) {
-      try {
-        for (const name of readdirSync(this.feedDir)) {
+    this.active = true
+    const generation = this.generation
+    const pending = (async () => {
+      if (options?.skipExisting) {
+        for (const name of await readdir(this.feedDir).catch(() => [])) {
           if (name.endsWith('.jsonl')) {
             const path = join(this.feedDir, name)
-            this.offsetByPath.set(path, statSync(path).size)
+            const size = await stat(path).then(
+              (entry) => entry.size,
+              () => 0
+            )
+            if (generation !== this.generation) {
+              return
+            }
+            this.offsetByPath.set(path, size)
           }
         }
-      } catch {
-        // No feed yet.
       }
-    }
-    this.timer = setInterval(() => {
-      if (!this.polling) {
-        this.polling = true
-        void this.pollOnce(this.generation)
-          .catch((error: unknown) => console.error('[amplifier-bridge] poll failed', error))
-          .finally(() => {
-            this.polling = false
-          })
+      if (this.active && generation === this.generation) {
+        this.wakeup.start()
       }
-    }, POLL_INTERVAL_MS)
-    // Why: a background status poller must never be the reason the process stays alive.
-    this.timer.unref()
+    })()
+    this.starting = pending
+    await pending
   }
 
   stop(): void {
     this.generation += 1
-    if (this.timer) {
-      clearInterval(this.timer)
-      this.timer = null
-    }
+    this.active = false
+    this.starting = null
+    this.wakeup.stop()
   }
 
-  private async pollOnce(generation: number): Promise<void> {
+  async flush(): Promise<void> {
+    await this.starting
+    await this.wakeup.flush()
+  }
+
+  private async pollOnce(generation: number): Promise<boolean> {
     let names: string[]
     try {
-      names = readdirSync(this.feedDir)
-    } catch {
-      // Feed dir doesn't exist yet (no Amplifier session has run since Orca
-      // started) -- not an error, just try again next tick.
-      return
+      names = await readdir(this.feedDir)
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+      ) {
+        return false
+      }
+      throw error
     }
+    let changed = false
     for (const name of names) {
       if (!name.endsWith('.jsonl')) {
         continue
       }
       if (generation !== this.generation) {
-        return
+        return changed
       }
-      await this.pollFile(join(this.feedDir, name), generation)
+      changed = (await this.pollFile(join(this.feedDir, name), generation)) || changed
     }
+    return changed
   }
 
-  private async pollFile(path: string, generation: number): Promise<void> {
-    let size: number
-    try {
-      size = statSync(path).size
-    } catch {
-      return
-    }
+  private async pollFile(path: string, generation: number): Promise<boolean> {
+    const isCurrent = () => this.active && generation === this.generation
     const previousOffset = this.offsetByPath.get(path) ?? 0
-    if (size <= previousOffset) {
-      // No growth. A shrink (truncate/rotate) is treated the same as "nothing
-      // new yet" -- hooks-orca-bridge only ever appends, so this shouldn't
-      // happen in practice; if it does, silently resetting to size avoids
-      // reprocessing old bytes as if they were new.
-      if (size < previousOffset) {
-        this.offsetByPath.set(path, size)
-      }
-      return
-    }
-    let fd: number
     try {
-      fd = openSync(path, 'r')
-    } catch {
-      return
-    }
-    try {
-      const toRead = size - previousOffset
-      const buffer = Buffer.alloc(toRead)
-      readSync(fd, buffer, 0, toRead, previousOffset)
-      const text = buffer.toString('utf8')
-      const lines = text.split('\n')
-      // The last element is either '' (chunk ended exactly on a newline) or a
-      // torn trailing line still being written -- never process it; only
-      // advance the offset through the end of the last COMPLETE line.
-      const completeLines = lines.slice(0, -1)
-      let consumedBytes = 0
-      for (const line of completeLines) {
-        if (generation !== this.generation) {
-          return
-        }
-        consumedBytes += Buffer.byteLength(line, 'utf8') + 1 // +1 for the newline itself
-        if (line.length > 0) {
-          const pending = this.processLine(line, () => generation === this.generation)
-          if (pending) {
-            await pending
+      const offset = await readBridgeFeedLines(
+        path,
+        previousOffset,
+        isCurrent,
+        async (line, through) => {
+          if (line) {
+            await this.processLine(line, isCurrent)
+          }
+          if (isCurrent()) {
+            this.offsetByPath.set(path, through)
           }
         }
-        if (generation !== this.generation) {
-          return
-        }
-        this.offsetByPath.set(path, previousOffset + consumedBytes)
+      )
+      if (isCurrent()) {
+        this.offsetByPath.set(path, offset)
       }
-    } finally {
-      closeSync(fd)
+      return offset !== previousOffset
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+      ) {
+        return false
+      }
+      throw error
     }
   }
 

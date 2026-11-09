@@ -69,7 +69,7 @@ async function registerWrapper(
   server: AgentHookServer,
   isCurrent: () => boolean = () => true
 ): Promise<string> {
-  server.registerAmplifierAgentSession(PANE, dir, 'current-session', { home: dir })
+  await server.registerAmplifierAgentSession(PANE, dir, 'current-session', { home: dir })
   await server.observeAmplifierAgentWrapper(
     PANE,
     {

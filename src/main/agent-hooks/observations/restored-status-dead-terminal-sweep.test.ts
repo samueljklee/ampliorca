@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AgentHookServer } from '../server/agent-hook-server'
 import { retireRestoredStatusesWithDeadTerminals } from './restored-status-dead-terminal-sweep'
 
@@ -9,6 +9,11 @@ const PANE = 'tab-restored:11111111-1111-4111-8111-111111111111'
 const WRAPPER_PANE = 'tab-wrapper:11111111-1111-4111-8111-111111111111'
 const directories: string[] = []
 const servers: AgentHookServer[] = []
+const OBSERVED_AT = 1_800_000_000_000
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'], now: OBSERVED_AT })
+})
 
 afterEach(() => {
   for (const server of servers.splice(0)) {
@@ -17,6 +22,7 @@ afterEach(() => {
   for (const directory of directories.splice(0)) {
     rmSync(directory, { recursive: true, force: true })
   }
+  vi.useRealTimers()
 })
 
 async function restoredServer(): Promise<AgentHookServer> {
@@ -36,8 +42,8 @@ async function restoredServer(): Promise<AgentHookServer> {
           connectionId: null,
           providerSession: { key: 'session_id', id: 'plain-session' },
           payload: { agentType: 'amplifier', state: 'working', prompt: 'review' },
-          receivedAt: Date.now(),
-          stateStartedAt: Date.now()
+          receivedAt: OBSERVED_AT,
+          stateStartedAt: OBSERVED_AT
         },
         [WRAPPER_PANE]: {
           paneKey: WRAPPER_PANE,
@@ -46,8 +52,8 @@ async function restoredServer(): Promise<AgentHookServer> {
           connectionId: null,
           providerSession: { key: 'session_id', id: 'wrapper-session' },
           payload: { agentType: 'amplifier-agent', state: 'working', prompt: 'build' },
-          receivedAt: Date.now(),
-          stateStartedAt: Date.now()
+          receivedAt: OBSERVED_AT,
+          stateStartedAt: OBSERVED_AT
         }
       }
     })

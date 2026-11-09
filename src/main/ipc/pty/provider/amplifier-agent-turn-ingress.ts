@@ -39,7 +39,7 @@ type PtyIngress = {
 const launches = new Map<string, AmplifierAgentPtyLaunch>()
 const ingressByPty = new Map<string, PtyIngress>()
 
-export function beginAmplifierAgentPtyLaunch(args: {
+export async function beginAmplifierAgentPtyLaunch(args: {
   paneKey: string
   sessionId: string
   launchToken: string
@@ -47,7 +47,7 @@ export function beginAmplifierAgentPtyLaunch(args: {
   cwd: string
   home?: string
   resume: boolean
-}): AmplifierAgentPtyLaunch {
+}): Promise<AmplifierAgentPtyLaunch> {
   const previous = launches.get(args.paneKey)
   if (previous) {
     previous.active = false
@@ -55,16 +55,17 @@ export function beginAmplifierAgentPtyLaunch(args: {
   if (args.expectedPtyId) {
     discardAmplifierAgentPtyIngress(args.expectedPtyId)
   }
-  const launch = {
+  const launch: AmplifierAgentPtyLaunch = {
     paneKey: args.paneKey,
     sessionId: args.sessionId,
     launchToken: args.launchToken,
     expectedPtyId: args.expectedPtyId,
-    feed: prepareAmplifierAgentFeed(args.cwd, args.sessionId, args),
+    feed: { path: '', offset: 0 },
     active: true,
     published: false
   }
   launches.set(args.paneKey, launch)
+  launch.feed = await prepareAmplifierAgentFeed(args.cwd, args.sessionId, args)
   return launch
 }
 

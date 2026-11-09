@@ -131,6 +131,9 @@ console.error(
     pid: process.pid,
     cwd,
     home: amplifierAgentHome,
+    ...(process.env.ORCA_AGENT_LAUNCH_TOKEN
+      ? { launchToken: process.env.ORCA_AGENT_LAUNCH_TOKEN }
+      : {}),
     workspace,
     paneKey: process.env.ORCA_PANE_KEY
   })}`

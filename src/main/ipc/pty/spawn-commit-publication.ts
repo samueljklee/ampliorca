@@ -109,7 +109,7 @@ export async function publishCommittedPtySpawn(
     state.cwd &&
     state.amplifierAgentSessionId
   ) {
-    agentHookServer.registerAmplifierAgentSession(
+    await agentHookServer.registerAmplifierAgentSession(
       rememberedPaneKey,
       state.cwd,
       state.amplifierAgentSessionId,

@@ -1,5 +1,4 @@
 // PTY and structured children must reach this app's CLI regardless of global registration.
-import { existsSync } from 'node:fs'
 import { delimiter, dirname, join } from 'node:path'
 import { getAppEnvironment, hasAppEnvironment } from '../../shared/app-environment'
 import { readInheritedPath } from '../ipc/pty/host-env/path'
@@ -61,7 +60,7 @@ export function prependOrcaCliDirToChildPath(
         .filter((entry) => entry.length > 0 && entry !== shimDir)
       // The bare-orca shim dir does not contain packaged agent launchers.
       const bundledCliBin = opts.resourcesPath ? join(opts.resourcesPath, 'bin') : null
-      if (bundledCliBin && existsSync(join(bundledCliBin, 'amplifier-agent-repl'))) {
+      if (bundledCliBin) {
         const existingIndex = inheritedEntries.indexOf(bundledCliBin)
         if (existingIndex !== -1) {
           inheritedEntries.splice(existingIndex, 1)
