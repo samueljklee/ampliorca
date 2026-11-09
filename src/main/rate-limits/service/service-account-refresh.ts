@@ -1,15 +1,19 @@
-import { consumeCodexRateLimitResetCredit } from '../codex-fetcher'
+import { consumeCodexRateLimitResetCredit } from '../providers/codex/codex-fetcher'
 import { RateLimitServiceInactiveAccounts } from './service-inactive-accounts'
 import { hasUsageWindows } from './service-result-policy'
 import {
   normalizeCodexAccountSelectionTarget,
+  type CodexAccountSelectionTarget
+} from '../../../shared/codex-selection-lane'
+import {
   normalizeClaudeAccountSelectionTarget,
-  type CodexAccountSelectionTarget,
-  type ClaudeAccountSelectionTarget,
-  type RateLimitRuntimeTarget,
-  type RateLimitState,
-  type CodexRateLimitResetResult
-} from './service-types'
+  type ClaudeAccountSelectionTarget
+} from '../../claude-accounts/runtime-selection'
+import type {
+  RateLimitRuntimeTarget,
+  RateLimitState,
+  CodexRateLimitResetResult
+} from '../../../shared/rate-limit-types'
 
 export abstract class RateLimitServiceAccountRefresh extends RateLimitServiceInactiveAccounts {
   async refresh(): Promise<RateLimitState> {
@@ -40,6 +44,14 @@ export abstract class RateLimitServiceAccountRefresh extends RateLimitServiceIna
     this.updateState({
       ...this.state,
       opencodeGo: this.withFetchingStatus(null, 'opencode-go')
+    })
+  }
+
+  invalidateAntigravityCredentialState(): void {
+    this.antigravityFetchGeneration += 1
+    this.updateState({
+      ...this.state,
+      antigravity: null
     })
   }
 

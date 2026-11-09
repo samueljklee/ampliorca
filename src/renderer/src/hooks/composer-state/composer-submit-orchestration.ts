@@ -66,6 +66,7 @@ export function useComposerSubmitOrchestration(
     pushTarget: target.workspaceIdentityState.pushTarget
   })
   const quickSubmitPreparation = useQuickSubmitPreparation({
+    branchIntent: target.workspaceIdentityState.branchIntent,
     branchAutoNameRef: target.asyncComposerState.branchAutoNameRef,
     branchNameOverridePreservesNameEdits:
       target.workspaceIdentityState.branchNameOverridePreservesNameEdits,
@@ -137,6 +138,7 @@ export function useComposerSubmitOrchestration(
       external.githubSubmitResolution.resolvePendingSmartGitHubSubmit,
     selectedRepo: target.runtimeTargetSelection.selectedRepo,
     selectedRepoRequiresConnection: target.runtimeTargetSelection.selectedRepoRequiresConnection,
+    selectedTargetNeedsVisibleHost: target.runtimeTargetSelection.selectedTargetNeedsVisibleHost,
     selectedWorkspaceTarget: target.runtimeTargetSelection.selectedWorkspaceTarget,
     setCreateError: target.asyncComposerState.setCreateError,
     setCreating: target.asyncComposerState.setCreating,

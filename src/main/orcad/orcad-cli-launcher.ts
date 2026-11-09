@@ -4,11 +4,12 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   ORCAD_CLI_ENTRY_FILENAME,
+  ORCAD_AMPLIFIER_AGENT_REPL_ENTRY,
   ORCAD_WINDOWS_CLI_LAUNCHER_FILENAME
 } from '../../shared/orcad-artifacts'
-import { nodeFileContentsEqual } from '../../shared/node-file-content-equality'
+import { nodeFileContentsEqual } from '../../shared/file-content/node-file-content-equality'
 import { buildUnixCliLauncher } from '../cli/cli-dev-launcher'
-import { writeFileAtomically } from '../codex-accounts/fs-utils'
+import { writeFileAtomically } from '../filesystem/atomic-file-publication'
 import { resolveOrcadInstallRoot, resolveUserDataPath } from './orcad-app-paths'
 
 // The native Windows launcher selects server mode when this sibling config exists.
@@ -31,19 +32,48 @@ export async function prepareOrcadCliLauncher(): Promise<void> {
   }
   const userDataPath = resolveUserDataPath()
   const binDir = join(userDataPath, 'cli', 'bin')
+  await prepareAmplifierAgentLauncher(installRoot, userDataPath, binDir)
   if (process.platform === 'win32') {
     launcherPath = await prepareWindowsLauncher(installRoot, entry, userDataPath, binDir)
     return
   }
-  const path = join(binDir, 'orca')
   const script = buildUnixCliLauncher(process.execPath, entry, userDataPath, 'node')
   await mkdir(binDir, { recursive: true })
-  const current = await readFile(path, 'utf8').catch(() => null)
-  if (current !== script) {
+  // Older clients type the Linux desktop `orca-ide claude-teams` into server terminals.
+  const names = process.platform === 'linux' ? ['orca', 'orca-ide'] : ['orca']
+  for (const name of names) {
+    const path = join(binDir, name)
+    const current = await readFile(path, 'utf8').catch(() => null)
+    if (current !== script) {
+      writeFileAtomically(path, script, { mode: 0o700 })
+    }
+    await chmod(path, 0o700)
+  }
+  launcherPath = join(binDir, 'orca')
+}
+
+async function prepareAmplifierAgentLauncher(
+  installRoot: string,
+  userDataPath: string,
+  binDir: string
+): Promise<void> {
+  const entry = join(installRoot, ...ORCAD_AMPLIFIER_AGENT_REPL_ENTRY.split('/'))
+  if (!existsSync(entry)) {
+    return
+  }
+  const windows = process.platform === 'win32'
+  const path = join(binDir, windows ? 'amplifier-agent-repl.cmd' : 'amplifier-agent-repl')
+  const batchPath = (value: string) => value.replaceAll('%', '%%')
+  const script = windows
+    ? `@echo off\r\nsetlocal\r\nset "NODE_OPTIONS="\r\nset "NODE_REPL_EXTERNAL_MODULE="\r\nset "ELECTRON_RUN_AS_NODE="\r\n"${batchPath(process.execPath)}" "${batchPath(entry)}" %*\r\n`
+    : buildUnixCliLauncher(process.execPath, entry, userDataPath, 'node')
+  await mkdir(binDir, { recursive: true })
+  if ((await readFile(path, 'utf8').catch(() => null)) !== script) {
     writeFileAtomically(path, script, { mode: 0o700 })
   }
-  await chmod(path, 0o700)
-  launcherPath = path
+  if (!windows) {
+    await chmod(path, 0o700)
+  }
 }
 
 export function buildWindowsCliLauncherConfig(

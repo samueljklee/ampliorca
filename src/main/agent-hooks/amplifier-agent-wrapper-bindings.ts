@@ -4,8 +4,8 @@ import { join } from 'node:path'
 import {
   readAgentProcess,
   probeAgentProcessPresence
-} from '../../shared/agent-process-presence-probe'
-import { readAgentProcessIdentity } from '../../shared/agent-process-presence'
+} from '../../shared/agent-status/process/agent-process-presence-probe'
+import { readAgentProcessIdentity } from '../../shared/agent-status/process/agent-process-presence'
 import {
   readAmplifierAgentWrapperBinding,
   type AmplifierAgentWrapperBinding

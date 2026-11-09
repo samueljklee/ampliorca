@@ -1,11 +1,11 @@
 import { advertisedUrlWatcher } from '../../../ports/advertised-url-watcher'
 import { unregisterPty } from '../../../memory/pty-registry'
-import { forgetCodexPaneAccount } from '../../../codex/codex-pane-account-registry'
+import { forgetCodexPaneAccount } from '../../../codex/configuration/homes/codex-pane-account-registry'
 import { openCodeHookService } from '../../../opencode/hook-service'
 import { piTitlebarExtensionService } from '../../../pi/titlebar-extension-service'
-import { agentHookServer } from '../../../agent-hooks/server'
-import { clearMigrationUnsupportedPty } from '../../../agent-hooks/migration-unsupported-pty-state'
-import { clearNativeWindowsConptyPty } from '../../../runtime/terminal-model-query-authority'
+import { agentHookServer } from '../../../agent-hooks/server/agent-hook-server'
+import { clearMigrationUnsupportedPty } from '../../../agent-hooks/observations/migration-unsupported-pty-state'
+import { clearNativeWindowsConptyPty } from '../../../runtime/terminal/output/terminal-model-query-authority'
 import {
   clearHiddenRendererPtyDeliveryState,
   isHiddenRendererPty
@@ -14,6 +14,7 @@ import { agentSessionOwners } from '../pane/agent-session-owners'
 import { paneKeyPtyId, paneKeyTeardownListeners, ptyPaneKey } from '../pane/key-state'
 import { getPtyIdsForConnection, ptyIncarnationById, ptyOwnership } from './ownership-state'
 import { clearBackgroundedDeliverySyncForPty } from './listener-lifecycle'
+import { discardAmplifierAgentPtyIngress } from './amplifier-agent-turn-ingress'
 import {
   activeRendererPtys,
   interactiveOutputCharsByPty,
@@ -31,6 +32,7 @@ export function clearProviderPtyState(
   id: string,
   opts: { preserveAgentSessionOwners?: boolean } = {}
 ): void {
+  discardAmplifierAgentPtyIngress(id)
   if (!opts.preserveAgentSessionOwners) {
     agentSessionOwners.release(id)
     // Persisted launch-account identity survives reconnectable disconnects, but real teardown must prevent reuse.

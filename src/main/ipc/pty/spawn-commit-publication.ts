@@ -1,5 +1,5 @@
-import { agentHookServer } from '../../agent-hooks/server'
-import { clearMigrationUnsupportedPtysForPaneKey } from '../../agent-hooks/migration-unsupported-pty-state'
+import { agentHookServer } from '../../agent-hooks/server/agent-hook-server'
+import { clearMigrationUnsupportedPtysForPaneKey } from '../../agent-hooks/observations/migration-unsupported-pty-state'
 import { registerPty } from '../../memory/pty-registry'
 import type { PtySpawnResult } from '../../providers/pty-provider-contract'
 import {
@@ -17,10 +17,11 @@ import {
 } from './pane/serializer-state'
 import { seedTerminalRestoreRecordsFromSpawnResult } from './pane/agent-session-owners'
 import { seedResumeLaunchIdentityFromSpawn } from './pane/resume-launch-identity'
-import { recordPtySpawnTelemetry } from './pane/spawn-telemetry'
+import { recordAgentStartTelemetry } from './pane/spawn-telemetry'
 import type { PtySpawnOutcome } from './spawn-outcome'
 import type { PtySpawnCommitInput, PtySpawnCommitState } from './spawn-commit-assembly'
 import { ptyIncarnationById } from './provider/ownership-state'
+import { publishAmplifierAgentPtyIngress } from './provider/amplifier-agent-turn-ingress'
 
 /** Window migration inputs: legacy and reminted spawn keys alias the pane's proven key. */
 export type PtySpawnPaneKeyAliases = {
@@ -82,18 +83,28 @@ export async function publishCommittedPtySpawn(
   }
   // Emit agent_started only after confirmed spawn, with field validation at the telemetry boundary.
   if (args.telemetry && !state.stablePaneOwner) {
-    recordPtySpawnTelemetry(args.telemetry)
+    recordAgentStartTelemetry(args.telemetry)
   }
   // Publish reverse pane lookup for hook titles and provider cleanup.
   const rememberedPaneKey = rememberPaneKeyForPty(result.id, input.paneKey)
   if (input.paneKeyAliases) {
     registerSpawnPaneKeyAliases(result, input.paneKey, input.paneKeyAliases)
   }
+  const feedLaunchToken = input.amplifierAgentLaunchToken
+  const hasFeedLaunchAuthority =
+    typeof feedLaunchToken === 'string' &&
+    feedLaunchToken.length > 0 &&
+    feedLaunchToken.length <= 128 &&
+    state.env?.ORCA_AGENT_LAUNCH_TOKEN === feedLaunchToken
   if (
     !state.stablePaneOwner &&
     !result.isReattach &&
     !args.connectionId &&
     args.launchAgent === 'amplifier-agent' &&
+    hasFeedLaunchAuthority &&
+    (!state.amplifierAgentPtyLaunch || state.amplifierAgentPtyLaunch.active) &&
+    result.incarnationId &&
+    ptyIncarnationById.get(result.id) === result.incarnationId &&
     rememberedPaneKey &&
     state.cwd &&
     state.amplifierAgentSessionId
@@ -104,24 +115,23 @@ export async function publishCommittedPtySpawn(
       state.amplifierAgentSessionId,
       {
         home: state.env?.AMPLIFIER_AGENT_HOME ?? process.env.AMPLIFIER_AGENT_HOME,
-        launchToken: input.amplifierAgentLaunchToken ?? state.env?.ORCA_AGENT_LAUNCH_TOKEN,
+        launchToken: feedLaunchToken,
+        feed: state.amplifierAgentPtyLaunch?.feed,
         resume:
           Boolean(args.resumeProviderSession) ||
           /(?:^|\s)--resume(?:\s|$)/.test(state.launchCommand ?? '')
       }
     )
+    await publishAmplifierAgentPtyIngress(
+      state.amplifierAgentPtyLaunch,
+      result.id,
+      rememberedPaneKey,
+      result.incarnationId,
+      state.amplifierAgentSessionId
+    )
   }
   if (result.isReattach && !args.connectionId && rememberedPaneKey && result.incarnationId) {
-    const incarnationId = result.incarnationId
-    await agentHookServer
-      .restoreAmplifierAgentSessionForPty(
-        rememberedPaneKey,
-        { ptyId: result.id, incarnationId },
-        () =>
-          getPtyIdForPaneKey(rememberedPaneKey) === result.id &&
-          ptyIncarnationById.get(result.id) === incarnationId
-      )
-      .catch((error: unknown) => console.warn('[agent-hooks] wrapper reattach failed', error))
+    await restoreAmplifierAgentFeedForPty(result, rememberedPaneKey)
   }
   registerPty({
     ptyId: result.id,
@@ -163,6 +173,25 @@ export async function publishCommittedPtySpawn(
         : {})
   })
   return { kind: 'committed', result: input.response }
+}
+
+export async function restoreAmplifierAgentFeedForPty(
+  result: PtySpawnResult,
+  paneKey: string
+): Promise<void> {
+  const incarnationId = result.incarnationId
+  if (!incarnationId) {
+    return
+  }
+  await agentHookServer
+    .restoreAmplifierAgentSessionForPty(
+      paneKey,
+      { ptyId: result.id, incarnationId },
+      () =>
+        getPtyIdForPaneKey(paneKey) === result.id &&
+        ptyIncarnationById.get(result.id) === incarnationId
+    )
+    .catch((error: unknown) => console.warn('[agent-hooks] wrapper reattach failed', error))
 }
 
 function markRendererScopedHiddenAtCommit(state: PtySpawnCommitState): void {

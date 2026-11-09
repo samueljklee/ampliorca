@@ -3,7 +3,7 @@ import { appendFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import type { SpoolRecord } from '../../shared/agent-hook-spool'
+import type { SpoolRecord } from '../../shared/agent-hook-listener/transport/agent-hook-spool'
 import {
   AmplifierAgentBridgeTailer,
   amplifierAgentEventsPath,

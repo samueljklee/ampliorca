@@ -4,7 +4,7 @@ import type {
   ClaudeRateLimitAccountsState
 } from '../../shared/managed-account-types'
 import type { GlobalSettings } from '../../shared/global-settings-types'
-import type { RateLimitService } from '../rate-limits/service'
+import type { RateLimitService } from '../rate-limits/service/rate-limit-service'
 import { claudeStateFile, readClaudeFolderLogin } from './claude-account-folder'
 import { savedWslClaudeAccountHome } from './claude-profile-wsl-paths'
 import type { ClaudeRuntimeAuthService } from './runtime-auth-service'
@@ -47,7 +47,11 @@ export type ClaudeAccountRuntime = Pick<
 > & {
   router: Pick<
     ClaudeRuntimeAuthService['router'],
-    'accountHome' | 'userConfigDir' | 'copiedLoginIntoSystemDefault' | 'coveredBySystemDefault'
+    | 'accountHome'
+    | 'userConfigDir'
+    | 'systemDefaultHome'
+    | 'copiedLoginIntoSystemDefault'
+    | 'coveredBySystemDefault'
   >
 }
 
@@ -85,7 +89,13 @@ export class ClaudeAccountSelection {
       accounts,
       activeAccountId: selection.host,
       activeAccountIdsByRuntime: selection,
+      ...(accounts.length > 0
+        ? { systemDefaultHome: this.runtimeAuth.router.systemDefaultHome() }
+        : {}),
       ...(systemDefault ? { systemDefaultEmail: systemDefault.email } : {}),
+      ...(systemDefault?.organizationUuid
+        ? { systemDefaultOrganizationUuid: systemDefault.organizationUuid }
+        : {}),
       ...(systemDefault && this.runtimeAuth.router.copiedLoginIntoSystemDefault()
         ? { systemDefaultMayBeCopied: true }
         : {})
@@ -98,12 +108,12 @@ export class ClaudeAccountSelection {
       // Avoid starting stopped distros; only legacy layouts are known to need sign-in.
       return savedWslClaudeAccountHome(account) ? summary : { ...summary, needsSignIn: true }
     }
-    const login = readClaudeFolderLogin(
-      claudeStateFile(this.runtimeAuth.router.accountHome(account.id))
-    )
+    const home = this.runtimeAuth.router.accountHome(account.id)
+    const login = readClaudeFolderLogin(claudeStateFile(home))
     if (login) {
       return {
         ...summary,
+        home,
         email: login.email,
         organizationUuid: login.organizationUuid,
         organizationName: login.organizationName
@@ -111,8 +121,8 @@ export class ClaudeAccountSelection {
     }
     // Allow System default to supply the login until the account signs in separately.
     return this.runtimeAuth.router.coveredBySystemDefault(account.id)
-      ? { ...summary, runsOnSystemDefault: true }
-      : { ...summary, needsSignIn: true }
+      ? { ...summary, home, runsOnSystemDefault: true }
+      : { ...summary, home, needsSignIn: true }
   }
 
   private savedSummary(account: ClaudeManagedAccount): ClaudeManagedAccountSummary {

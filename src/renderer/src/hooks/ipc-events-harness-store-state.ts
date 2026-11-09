@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import type { TerminalPaneLayoutNode } from '../../../shared/terminal-tab-types'
+import type { TerminalPaneLayoutNode } from '../../../shared/workspace-layout/terminal-tab-types'
 
 export type HarnessTab = { id: string; ptyId?: string | null; title?: string }
 
@@ -38,6 +38,8 @@ export function createHarnessStoreState(
     setUpdateStatus: vi.fn(),
     fetchRepos: vi.fn(),
     fetchWorktrees: vi.fn(),
+    fetchHostWorkspaceStatuses: vi.fn(),
+    refreshEphemeralVmRuntimes: vi.fn(async () => undefined),
     closeModal: vi.fn(),
     openModal: vi.fn(),
     setActiveRepo: vi.fn(),
@@ -71,7 +73,7 @@ export function createHarnessStoreState(
     editorFontZoomLevel: 0,
     settings: {
       terminalFontSize: 13,
-      experimentalNativeChat: false,
+      nativeChatProviders: { claude: false, codex: false },
       openAgentTabsInChatByDefault: false,
       activeRuntimeEnvironmentId: undefined
     },

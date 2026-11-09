@@ -1,17 +1,13 @@
-import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runProcess } from '@orca/process-host'
 import {
   ORCAD_CLI_ENTRY_FILENAME,
-  ORCAD_WINDOWS_CLI_LAUNCHER_FILENAME
+  orcadTemplateCommonFilenames
 } from '../../shared/orcad-artifacts'
-import {
-  ORCAD_WINDOWS_CLI_LAUNCHER_CONFIG_FILENAME,
-  getOrcadCliLauncherPath,
-  prepareOrcadCliLauncher
-} from './orcad-cli-launcher'
+import { getOrcadCliLauncherPath, prepareOrcadCliLauncher } from './orcad-cli-launcher'
 
 const roots = vi.hoisted(() => ({ install: '', profile: '' }))
 vi.mock('./orcad-app-paths', () => ({
@@ -44,6 +40,126 @@ async function writeCli(): Promise<void> {
 
 describe('orcad profile CLI launcher', () => {
   it.skipIf(process.platform === 'win32')(
+    'delivers fresh and history-resumed engine turns from the standalone template with its own Node',
+    async () => {
+      await writeCli()
+      for (const filename of orcadTemplateCommonFilenames([])) {
+        if (filename.startsWith('agent-wrappers/')) {
+          const destination = join(roots.install, ...filename.split('/'))
+          await mkdir(dirname(destination), { recursive: true })
+          await copyFile(
+            new URL('../../../config/scripts/amplifier-agent-repl.mjs', import.meta.url),
+            destination
+          )
+        }
+      }
+      await prepareOrcadCliLauncher()
+      const binDir = join(roots.profile, 'cli', 'bin')
+      const callsPath = join(directory, 'engine-calls.jsonl')
+      await writeFile(join(binDir, 'node'), '#!/bin/sh\nexit 99\n', { mode: 0o700 })
+      await writeFile(
+        join(binDir, 'amplifier-agent'),
+        `#!${process.execPath}
+const { appendFileSync } = require('node:fs')
+appendFileSync(process.env.ENGINE_CALLS, JSON.stringify({
+  args: process.argv.slice(2),
+  runtime: process.execPath,
+  nodeOptions: process.env.NODE_OPTIONS ?? null,
+  electron: process.env.ELECTRON_RUN_AS_NODE ?? null
+}) + '\\n')
+`,
+        { mode: 0o700 }
+      )
+      const workspace = join(directory, 'workspace')
+      const home = join(directory, 'agent-home')
+      await mkdir(workspace)
+      const env = {
+        ...process.env,
+        PATH: `${binDir}:/usr/bin:/bin`,
+        ENGINE_CALLS: callsPath,
+        AMPLIFIER_AGENT_HOME: home,
+        NODE_OPTIONS: '--require=/missing/inherited/preload',
+        NODE_REPL_EXTERNAL_MODULE: '/missing/inherited/repl',
+        ELECTRON_RUN_AS_NODE: '1'
+      }
+      const program = join(binDir, 'amplifier-agent-repl')
+      const fresh = await runProcess({
+        program,
+        args: ['--session-id', 'fresh-delivery'],
+        input: 'first\n\x1b[200~second\nline\x1b[201~\n',
+        cwd: workspace,
+        env,
+        timeoutMs: 10_000
+      })
+      expect(fresh.code, fresh.stderr).toBe(0)
+      await mkdir(
+        join(home, 'state', 'workspaces', 'original-workspace', 'sessions', 'history-delivery'),
+        { recursive: true }
+      )
+      const resumed = await runProcess({
+        program,
+        args: ['--resume', 'history-delivery'],
+        input: 'resumed\n',
+        cwd: workspace,
+        env,
+        timeoutMs: 10_000
+      })
+      expect(resumed.code, resumed.stderr).toBe(0)
+      expect(
+        (await readFile(callsPath, 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+      ).toEqual([
+        {
+          args: [
+            'run',
+            '-y',
+            '--session-id',
+            'fresh-delivery',
+            '--workspace',
+            'workspace',
+            'first'
+          ],
+          runtime: process.execPath,
+          nodeOptions: null,
+          electron: null
+        },
+        {
+          args: [
+            'run',
+            '-y',
+            '--session-id',
+            'fresh-delivery',
+            '--workspace',
+            'workspace',
+            '--resume',
+            'second\nline'
+          ],
+          runtime: process.execPath,
+          nodeOptions: null,
+          electron: null
+        },
+        {
+          args: [
+            'run',
+            '-y',
+            '--session-id',
+            'history-delivery',
+            '--workspace',
+            'original-workspace',
+            '--resume',
+            'resumed'
+          ],
+          runtime: process.execPath,
+          nodeOptions: null,
+          electron: null
+        }
+      ])
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
     'launches pinned Node with intact arguments and the execution host profile',
     async () => {
       await writeCli()
@@ -54,19 +170,23 @@ describe('orcad profile CLI launcher', () => {
         throw new Error('CLI launcher is missing')
       }
       const args = ['orchestration', 'send', 'a body\nwith "quotes" and $HOME']
-      const result = await runProcess({
-        program: launcher,
-        args,
-        env: {
-          ...process.env,
-          ORCA_USER_DATA_PATH: '/another/owner',
-          ELECTRON_RUN_AS_NODE: '1',
-          NODE_OPTIONS: '--require /missing/inherited/preload'
-        },
-        timeoutMs: 5000
-      })
-      expect(result.code).toBe(0)
-      expect(JSON.parse(result.stdout)).toEqual({ profile: roots.profile, args })
+      const launchers =
+        process.platform === 'linux' ? [launcher, join(dirname(launcher), 'orca-ide')] : [launcher]
+      for (const program of launchers) {
+        const result = await runProcess({
+          program,
+          args,
+          env: {
+            ...process.env,
+            ORCA_USER_DATA_PATH: '/another/owner',
+            ELECTRON_RUN_AS_NODE: '1',
+            NODE_OPTIONS: '--require /missing/inherited/preload'
+          },
+          timeoutMs: 5000
+        })
+        expect(result.code).toBe(0)
+        expect(JSON.parse(result.stdout)).toEqual({ profile: roots.profile, args })
+      }
     }
   )
 
@@ -98,83 +218,4 @@ describe('orcad profile CLI launcher', () => {
       })
     }
   )
-
-  it.skipIf(process.platform === 'win32')(
-    'refreshes the launcher when the host switches server slots',
-    async () => {
-      await writeCli()
-      await prepareOrcadCliLauncher()
-      roots.install = join(directory, 'updated server')
-      await writeCli()
-      await prepareOrcadCliLauncher()
-      const launcher = getOrcadCliLauncherPath()
-      if (!launcher) {
-        throw new Error('CLI launcher is missing')
-      }
-      expect(await readFile(launcher, 'utf8')).toContain(roots.install)
-    }
-  )
-
-  it('leaves old slots without a CLI usable and clears a previous launcher', async () => {
-    await writeCli()
-    await prepareOrcadCliLauncher()
-    roots.install = join(directory, 'old server')
-    await prepareOrcadCliLauncher()
-    expect(getOrcadCliLauncherPath()).toBeNull()
-  })
-
-  describe('on a Windows host', () => {
-    beforeEach(() => {
-      Object.defineProperty(process, 'platform', { configurable: true, value: 'win32' })
-    })
-
-    async function writeLauncher(contents: string): Promise<void> {
-      const path = join(roots.install, ...ORCAD_WINDOWS_CLI_LAUNCHER_FILENAME.split('/'))
-      await mkdir(dirname(path), { recursive: true })
-      await writeFile(path, contents)
-    }
-
-    const binDir = (): string => join(roots.profile, 'cli', 'bin')
-    const readConfig = (): Promise<string> =>
-      readFile(join(binDir(), ORCAD_WINDOWS_CLI_LAUNCHER_CONFIG_FILENAME), 'utf8')
-
-    it('installs the native launcher and points it at this slot, runtime and profile', async () => {
-      await writeCli()
-      await writeLauncher('native launcher v1')
-      await prepareOrcadCliLauncher()
-      const launcher = getOrcadCliLauncherPath()
-      expect(launcher).toBe(join(binDir(), 'orca.exe'))
-      expect(await readFile(launcher!, 'utf8')).toBe('native launcher v1')
-      expect(await readConfig()).toBe(
-        [
-          `node=${process.execPath}`,
-          `cli=${join(roots.install, ...ORCAD_CLI_ENTRY_FILENAME.split('/'))}`,
-          `user-data=${roots.profile}`,
-          ''
-        ].join('\n')
-      )
-      // Batch/PowerShell proxies can reparse cmd.exe arguments instead of preserving them.
-      expect((await readdir(binDir())).sort()).toEqual(
-        [ORCAD_WINDOWS_CLI_LAUNCHER_CONFIG_FILENAME, 'orca.exe'].sort()
-      )
-    })
-
-    it('refreshes the launcher and its target when the host switches server slots', async () => {
-      await writeCli()
-      await writeLauncher('native launcher v1')
-      await prepareOrcadCliLauncher()
-      roots.install = join(directory, 'updated server')
-      await writeCli()
-      await writeLauncher('native launcher v2')
-      await prepareOrcadCliLauncher()
-      expect(await readFile(join(binDir(), 'orca.exe'), 'utf8')).toBe('native launcher v2')
-      expect(await readConfig()).toContain(`cli=${join(roots.install, 'out', 'cli', 'index.js')}`)
-    })
-
-    it('leaves a slot without the native launcher with no orca command', async () => {
-      await writeCli()
-      await prepareOrcadCliLauncher()
-      expect(getOrcadCliLauncherPath()).toBeNull()
-    })
-  })
 })

@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import Database from '../sqlite/sync-database'
 
-export { writeAmplifierScannerFixtures } from './session-scanner-amplifier-fixtures'
+export { writeAmplifierScannerFixtures } from './scanners/amplifier/session-scanner-amplifier-fixtures'
 
 export async function writeOpenCode2SqliteFixture(root: string): Promise<string> {
   const opencode2DbPath = join(root, 'opencode-next.db')

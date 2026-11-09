@@ -1,13 +1,13 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import type { DashboardAgentRow } from './useDashboardData'
-import { useFocusedAgentPaneKey } from '@/components/sidebar/focused-agent-row-highlight'
+import { useFocusedAgentPaneKey } from '@/components/sidebar/workspace-card/activity/focused-agent-row-highlight'
 import { useAppStore } from '@/store'
-import { runtimeEnvironmentIdOrLocalUnlessTwin } from '@/lib/worktree-runtime-owner'
-import { runtimeTargetForOwnerEnvironment } from '@/runtime/runtime-client-target'
+import { runtimeEnvironmentIdOrLocalUnlessTwin } from '@/lib/workspace/ownership/worktree-runtime-owner'
+import { runtimeTargetForOwnerEnvironment } from '@/runtime/rpc/targets/runtime-client-target'
 import {
   readClaudeAgentViews,
   subscribeClaudeAgentViews
-} from '@/runtime/claude-agent-view-observations'
+} from '@/runtime/provider-accounts/observations/claude-agent-view-observations'
 
 export function useClaudeAgentRowView(agent: DashboardAgentRow) {
   const paneKey = agent.activationPaneKey ?? agent.paneKey
@@ -46,18 +46,9 @@ export function useClaudeAgentRowView(agent: DashboardAgentRow) {
   if (!view) {
     return null
   }
-  const child = agent.rowSource === 'subagent'
-  const current = child
-    ? view.agentId === (agent.childRow?.providerId ?? agent.childRow?.id)
-    : !view.agentId
-  const viewedChild = parent.children?.find((item) => (item.providerId ?? item.id) === view.agentId)
-  const legacyChild = parent.subagents?.find((item) => item.id === view.agentId)
-  const label =
-    viewedChild?.name ||
-    viewedChild?.description ||
-    viewedChild?.agentType ||
-    legacyChild?.description ||
-    legacyChild?.agentType ||
-    view.agentId
-  return { current, agentId: view.agentId, child, label, focused }
+  const current =
+    agent.rowSource === 'subagent'
+      ? view.agentId === (agent.childRow?.providerId ?? agent.childRow?.id)
+      : !view.agentId
+  return { current, focused }
 }

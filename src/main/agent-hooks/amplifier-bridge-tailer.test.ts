@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, appendFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { SpoolRecord } from '../../shared/agent-hook-spool'
+import type { SpoolRecord } from '../../shared/agent-hook-listener/transport/agent-hook-spool'
 import { AmplifierBridgeTailer } from './amplifier-bridge-tailer'
 
 // Why fake timers, not real sleeps: the tailer polls on a 300ms interval --

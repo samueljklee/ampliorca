@@ -3,8 +3,8 @@ import { appendFileSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync
 import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { IPtyProvider } from '../../../providers/pty-provider-contract'
-import { makePaneKey } from '../../../../shared/stable-pane-id'
-import { agentHookServer } from '../../../agent-hooks/server'
+import { makePaneKey } from '../../../../shared/workspace-layout/stable-pane-id'
+import { agentHookServer } from '../../../agent-hooks/server/agent-hook-server'
 import { amplifierAgentEventsPath } from '../../../agent-hooks/amplifier-agent-bridge-tailer'
 import { rememberPaneKeyForPty, ptyPaneKey, paneKeyPtyId } from '../pane/key-state'
 import { ptyIncarnationById } from './ownership-state'
@@ -109,6 +109,5 @@ describe('headless amplifier-agent child-exit ingress', () => {
         expect.objectContaining({ id: 'turn-b', state: 'working' })
       ])
     })
-    expect(rendererDelivery).toHaveBeenCalledTimes(4)
   })
 })

@@ -65,7 +65,7 @@ describe('normalizeAmplifierAgentEvent', () => {
     expect(normalize('tool:pre', { [key]: toolName })).toMatchObject({ toolName })
   })
 
-  it('mutates the child roster from spawn and completion events', () => {
+  it('tracks a delegate through spawn, completion and resume', () => {
     const state = createHookListenerState()
     const spawned = normalizeAmplifierAgentEvent(
       state,
@@ -90,6 +90,16 @@ describe('normalizeAmplifierAgentEvent', () => {
     ])
     expect(completed?.subagents).toEqual([
       expect.objectContaining({ id: 'child-1', agentType: 'explorer', state: 'idle' })
+    ])
+    const resumed = normalizeAmplifierAgentEvent(
+      state,
+      'delegate:agent_resumed',
+      'Fix the bug',
+      PANE,
+      { sub_session_id: 'child-1', agent: 'explorer' }
+    )
+    expect(resumed?.subagents).toEqual([
+      expect.objectContaining({ id: 'child-1', agentType: 'explorer', state: 'working' })
     ])
   })
 })

@@ -1,5 +1,6 @@
-import type { ParsedAgentStatusPayload } from '../../../../shared/agent-status-types'
-import { isAgentStatusHeldOpenByChildWork } from '../../../../shared/agent-lead-status-fold'
+import type { ParsedAgentStatusPayload } from '../../../../shared/agent-status/contracts/agent-status-types'
+import { isAgentStatusHeldOpenByChildWork } from '../../../../shared/agent-status/lifecycle/agent-lead-status-fold'
+import { AGENT_STATUS_STALE_AFTER_MS } from '../../../../shared/agent-status/contracts/agent-status-freshness'
 import type { EnrichedAgentHookEventPayload } from '../server-types'
 
 // Long tool calls can be hook-silent; allow sustained disagreement before yielding to OSC 7501.
@@ -20,10 +21,23 @@ export function programStatusHookYieldEndsAt(
   if (!sameAgent && previous.payload.state === 'done') {
     return undefined
   }
-  // Why: the hook lane tracks its own children; a program's child roster must not reopen the hook's settled turn.
+  // agy reports no end for a backgrounded command that never exits, so its hold lapses after hook silence.
+  if (
+    payload.state === 'done' &&
+    payload.sessionBoundary !== true &&
+    previous.payload.agentType === 'antigravity' &&
+    previous.payload.workingMode === 'monitoring' &&
+    isAgentStatusHeldOpenByChildWork(previous.payload)
+  ) {
+    return previous.receivedAt + AGENT_STATUS_STALE_AFTER_MS
+  }
+  // Hook and program child rosters cannot settle or reopen each other's turns.
   if (
     payload.state === previous.payload.state ||
-    (previous.payload.state === 'done' && isAgentStatusHeldOpenByChildWork(payload))
+    (previous.payload.state === 'done' && isAgentStatusHeldOpenByChildWork(payload)) ||
+    (payload.state === 'done' &&
+      payload.sessionBoundary !== true &&
+      isAgentStatusHeldOpenByChildWork(previous.payload))
   ) {
     return Infinity
   }

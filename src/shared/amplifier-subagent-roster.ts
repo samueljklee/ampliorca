@@ -7,7 +7,10 @@
 // provider. See claude-subagent-roster.ts for the fuller-featured sibling
 // this intentionally does not copy in full.
 
-import type { AgentSubagentSnapshot, AgentSubagentState } from './agent-status-types'
+import type {
+  AgentSubagentSnapshot,
+  AgentSubagentState
+} from './agent-status/contracts/agent-status-subagent-snapshot'
 import type { HookListenerState } from './agent-hook-listener/listener-state'
 
 export type TrackedAmplifierSubagent = {

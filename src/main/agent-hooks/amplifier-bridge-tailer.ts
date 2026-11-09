@@ -19,7 +19,7 @@ import { closeSync, openSync, readSync, readdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-import type { SpoolRecord } from '../../shared/agent-hook-spool'
+import type { SpoolRecord } from '../../shared/agent-hook-listener/transport/agent-hook-spool'
 
 export const AMPLIFIER_BRIDGE_DEFAULT_FEED_DIR = join(homedir(), '.ampliorca', 'orca-bridge')
 const POLL_INTERVAL_MS = 300

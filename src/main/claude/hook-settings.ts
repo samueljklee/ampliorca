@@ -2,24 +2,26 @@ import { homedir } from 'node:os'
 import { basename, extname, join, win32 } from 'node:path'
 import {
   buildManagedCommandHook,
-  createManagedCommandMatcher,
-  getSharedManagedScriptPath,
-  isPlainObject,
-  isSafeUnicodeWindowsBatchHookPath,
   MANAGED_HOOK_TIMEOUT_SECONDS,
-  removeManagedCommands,
-  wrapWindowsPowerShellEncodedCommand,
   type HookCommandConfig,
-  type HookDefinition,
   type HooksConfig
-} from '../agent-hooks/installer-utils'
+} from '../agent-hooks/installation/configuration/hook-config-schema'
+import {
+  createManagedCommandMatcher,
+  removeManagedCommands,
+  withPreviousManagedAsync
+} from '../agent-hooks/installation/commands/managed-hook-command-matching'
+import { getSharedManagedScriptPath } from '../agent-hooks/installation/scripts/managed-hook-script-path'
+import { isPlainObject } from '../agent-hooks/installation/configuration/hooks-json-read'
+import { isSafeUnicodeWindowsBatchHookPath } from '../agent-hooks/installation/commands/windows-hook-command'
+import { wrapWindowsPowerShellEncodedCommand } from '../agent-hooks/installation/commands/windows-powershell-hook-launcher'
 import { quotePowerShellLiteral } from '../../shared/powershell-native-argument'
-import { getWindowsNativeHookAgent } from '../agent-hooks/windows-native-hook-executable'
+import { getWindowsNativeHookAgent } from '../agent-hooks/installation/commands/windows-native-hook-executable'
 import {
   wrapRuntimeHomeHookCommand,
   wrapRuntimeHomePosixHookCommand
-} from '../agent-hooks/runtime-home-hook-command'
-import { wrapWindowsDirectCmdHookCommand } from '../agent-hooks/windows-direct-cmd-hook-command'
+} from '../agent-hooks/installation/commands/runtime-home-hook-command'
+import { wrapWindowsDirectCmdHookCommand } from '../agent-hooks/installation/commands/windows-direct-cmd-hook-command'
 import type { ClaudeManagedHookPlan } from './claude-managed-hook-events'
 
 export type ClaudeCompatibleHookSettings = {
@@ -238,12 +240,10 @@ export function applyManagedHooks(
 
   for (const event of plan.install) {
     const current = nextHooks[event.eventName]
-    const cleaned = Array.isArray(current) ? removeManagedCommands(current, isManagedCommand) : []
-    const definition: HookDefinition = {
-      ...event.definition,
-      hooks: [hookForEvent(event.eventName)]
-    }
-    nextHooks[event.eventName] = [...cleaned, definition]
+    const previous = Array.isArray(current) ? current : []
+    const hook = withPreviousManagedAsync(hookForEvent(event.eventName), previous, isManagedCommand)
+    const cleaned = removeManagedCommands(previous, isManagedCommand)
+    nextHooks[event.eventName] = [...cleaned, { ...event.definition, hooks: [hook] }]
   }
 
   for (const event of plan.retire) {

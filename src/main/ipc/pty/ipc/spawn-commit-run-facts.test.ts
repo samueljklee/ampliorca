@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OrcaRuntimeWithRuntimeId } from '../../../runtime/construction/runtime-identity-state'
-import { TerminalIntentionalStops } from '../../../runtime/terminal-intentional-stops'
-import { TerminalRunFactsRegister } from '../../../runtime/terminal-run-facts'
+import { TerminalIntentionalStops } from '../../../runtime/terminal/stop/terminal-intentional-stops'
+import { TerminalRunFactsRegister } from '../../../runtime/terminal/lifecycle/terminal-run-facts'
 import { ptySizes } from '../delivery/visibility-state'
 import { ptyIncarnationById, ptyOwnership } from '../provider/ownership-state'
 import { commitPtyIpcSpawn } from './spawn-commit'
 import { createPtyIpcSpawnState } from './spawn-state'
 import type { PtySpawnIpcDeps } from './spawn-types'
-import { agentHookServer } from '../../../agent-hooks/server'
-import { makePaneKey } from '../../../../shared/stable-pane-id'
+import { agentHookServer } from '../../../agent-hooks/server/agent-hook-server'
+import { makePaneKey } from '../../../../shared/workspace-layout/stable-pane-id'
 import { ptyPaneKey, paneKeyPtyId } from '../pane/key-state'
 
 vi.mock('../../../../shared/layout-owner-switch', () => ({ ORCA_LAYOUT_OWNER_IS_MAIN: true }))
@@ -99,7 +99,10 @@ describe('renderer spawn commit: run facts', () => {
         ctx.args.launchToken = 'launch-1'
         ctx.validatedPaneKey = paneKey
         ctx.cwd = '/repo/project'
-        ctx.env = { AMPLIFIER_AGENT_HOME: '/isolated/agent-home' }
+        ctx.env = {
+          AMPLIFIER_AGENT_HOME: '/isolated/agent-home',
+          ORCA_AGENT_LAUNCH_TOKEN: String(ctx.args.launchToken)
+        }
         ctx.amplifierAgentSessionId = 'spawned-session'
         register.mockImplementation(() => {
           expect(savedBinding).toBe(true)

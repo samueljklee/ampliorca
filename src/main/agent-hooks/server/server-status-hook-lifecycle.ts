@@ -1,28 +1,34 @@
-import { drainAgentHookSpoolAsync, type SpoolRecord } from '../../../shared/agent-hook-spool'
-import { AgentHookServerRuntimeEnv } from './server-runtime-env'
-import { ClaudeAgentViewBridge } from '../../claude/agent-view-bridge'
+import {
+  drainAgentHookSpoolAsync,
+  type SpoolRecord
+} from '../../../shared/agent-hook-listener/transport/agent-hook-spool'
+import { hookRootAnswerDeadline } from '../../../shared/agent-hook-listener/presence/hook-root-attempts'
+import { AgentHookServerAmplifierAgentSettlement } from './server-amplifier-agent-settlement'
+import { ClaudeAgentViewBridge } from '../../claude/agent-view/agent-view-bridge'
 import { AmplifierBridgeTailer } from '../amplifier-bridge-tailer'
-import { AmplifierAgentBridgeTailer } from '../amplifier-agent-bridge-tailer'
-import type {
-  AmplifierAgentTurnSettlement,
-  AmplifierAgentWrapperBinding
-} from '../../../shared/amplifier-agent-turn-settlement'
+import type { AmplifierAgentFeedOptions } from '../amplifier-agent-feed'
+import type { AmplifierAgentWrapperBinding } from '../../../shared/amplifier-agent-turn-settlement'
 import {
   persistAmplifierAgentWrapperBinding,
   restoreAmplifierAgentWrapperBinding,
   type AmplifierAgentTerminalBinding
 } from '../amplifier-agent-wrapper-bindings'
-import {
-  amplifierAgentRosterToSnapshots,
-  settleAmplifierAgentRosterForPane
-} from '../../../shared/amplifier-agent-subagent-roster'
-import { isLocalHookConnectionId } from '../../../shared/wsl-hook-relay-contract'
-import type { EnrichedAgentHookEventPayload } from './server-types'
+import { paneCacheKeyMatchesTab } from './server-status-identity'
 
-export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServerRuntimeEnv {
+export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServerAmplifierAgentSettlement {
+  override dropStatusEntriesByTabPrefix(tabId: string): void {
+    this.amplifierAgentBridgeTailer.unregisterTab(tabId)
+    for (const paneKey of this.amplifierAgentWrappers.keys()) {
+      if (paneCacheKeyMatchesTab(paneKey, tabId)) {
+        this.amplifierAgentWrappers.delete(paneKey)
+      }
+    }
+    super.dropStatusEntriesByTabPrefix(tabId)
+  }
+
   override clearPaneState(
     paneKey: string,
-    options?: Parameters<AgentHookServerRuntimeEnv['clearPaneState']>[1]
+    options?: Parameters<AgentHookServerAmplifierAgentSettlement['clearPaneState']>[1]
   ): void {
     this.unregisterAmplifierAgentSession(this.resolvePaneKeyAlias(paneKey))
     super.clearPaneState(paneKey, options)
@@ -30,13 +36,6 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
 
   readonly claudeAgentViews = new ClaudeAgentViewBridge()
   private statusHookInitialization: Promise<void> | null = null
-  private readonly amplifierAgentWrappers = new Map<
-    string,
-    {
-      wrapperId: string
-      lastSettledTurn: number
-    }
-  >()
 
   async observeAmplifierAgentWrapper(
     paneKey: string,
@@ -50,6 +49,7 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
     }
     const previous = this.amplifierAgentWrappers.get(paneKey)
     if (previous?.wrapperId === wrapper.wrapperId) {
+      previous.isCurrent = isCurrent
       return
     }
     const generation = this.statusHookGeneration
@@ -66,7 +66,11 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
         )
       : false
     if (current() && (!previous || proven)) {
-      this.amplifierAgentWrappers.set(paneKey, { wrapperId: wrapper.wrapperId, lastSettledTurn: 0 })
+      this.amplifierAgentWrappers.set(paneKey, {
+        wrapperId: wrapper.wrapperId,
+        lastSettledTurn: 0,
+        isCurrent
+      })
     }
   }
 
@@ -79,11 +83,13 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
       return
     }
     const generation = this.statusHookGeneration
+    const previous = this.amplifierAgentWrappers.get(paneKey)
     const wrapper = await restoreAmplifierAgentWrapperBinding(this.endpointDir, paneKey, terminal)
     if (
       !wrapper ||
       !isCurrent() ||
       generation !== this.statusHookGeneration ||
+      this.amplifierAgentWrappers.get(paneKey) !== previous ||
       !this.statusHooksEnabled
     ) {
       return
@@ -94,103 +100,21 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
       resume: true,
       launchToken: wrapper.launchToken
     })
-    this.amplifierAgentWrappers.set(paneKey, { wrapperId: wrapper.wrapperId, lastSettledTurn: 0 })
+    this.amplifierAgentWrappers.set(paneKey, {
+      wrapperId: wrapper.wrapperId,
+      lastSettledTurn: 0,
+      isCurrent
+    })
   }
   private readonly amplifierBridgeTailer = new AmplifierBridgeTailer((record, isCurrent) =>
     this.ingestLiveFileRecord(record, isCurrent)
   )
-  private readonly amplifierAgentBridgeTailer = new AmplifierAgentBridgeTailer(
-    (record, isCurrent) => this.ingestLiveFileRecord(record, isCurrent)
-  )
-
-  async settleAmplifierAgentTurnForPane(
-    paneKey: string,
-    failed: boolean,
-    sessionId?: string,
-    settlement?: AmplifierAgentTurnSettlement
-  ): Promise<void> {
-    const generation = this.statusHookGeneration
-    const resolved = this.resolvePaneKeyAlias(paneKey)
-    const wrapper = this.amplifierAgentWrappers.get(resolved)
-    const boundSessionId = this.currentAmplifierAgentSessionId(resolved)
-    if (
-      !settlement ||
-      !wrapper ||
-      wrapper.wrapperId !== settlement.wrapperId ||
-      wrapper.lastSettledTurn >= settlement.turn ||
-      boundSessionId !== sessionId ||
-      settlement.sessionId !== sessionId ||
-      settlement.failed !== failed
-    ) {
-      return
-    }
-    // The child can exit before the next file poll observes its final delegate events.
-    await this.amplifierAgentBridgeTailer.flush()
-    if (
-      this.statusHooksEnabled &&
-      this.statusHookGeneration === generation &&
-      this.amplifierAgentWrappers.get(resolved) === wrapper &&
-      wrapper.lastSettledTurn < settlement.turn
-    ) {
-      wrapper.lastSettledTurn = settlement.turn
-      this.settleAmplifierAgentDelegatesForPane(
-        resolved,
-        failed,
-        this.amplifierAgentBridgeTailer.delegatesThrough(
-          resolved,
-          settlement.from,
-          settlement.through
-        )
-      )
-    }
-  }
-
-  private settleAmplifierAgentDelegatesForPane(
-    paneKey: string,
-    failed: boolean,
-    delegateIds: ReadonlySet<string>
-  ): void {
-    const current = this.state.lastStatusByPaneKey.get(paneKey)
-    if (
-      current?.payload.agentType !== 'amplifier-agent' ||
-      !('receivedAt' in current) ||
-      typeof current.receivedAt !== 'number' ||
-      !('stateStartedAt' in current) ||
-      typeof current.stateStartedAt !== 'number' ||
-      !isLocalHookConnectionId(current.connectionId) ||
-      current.providerSessionOnly ||
-      !settleAmplifierAgentRosterForPane(this.state, paneKey, { failed, delegateIds })
-    ) {
-      return
-    }
-    const previous: EnrichedAgentHookEventPayload = {
-      ...current,
-      receivedAt: current.receivedAt,
-      stateStartedAt: current.stateStartedAt
-    }
-    const settled = {
-      ...previous,
-      payload: {
-        ...current.payload,
-        subagents: amplifierAgentRosterToSnapshots(
-          this.state.amplifierAgentSubagentRosterByPaneKey.get(paneKey)
-        )
-      }
-    }
-    if (!this.writeLegacyStatusRow(settled)) {
-      return
-    }
-    this.commitStatusRowMutation(previous, settled)
-    this.scheduleStatusPersist()
-    this.notifyStatusChangeListeners()
-    this.emitEnrichedStatus(settled)
-  }
 
   registerAmplifierAgentSession(
     paneKey: string,
     cwd: string,
     sessionId: string,
-    options?: { home?: string; launchToken?: string; resume?: boolean; workspace?: string }
+    options?: AmplifierAgentFeedOptions
   ): void {
     const resolvedPaneKey = this.resolvePaneKeyAlias(paneKey)
     this.unregisterAmplifierAgentSession(resolvedPaneKey)
@@ -204,20 +128,12 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
     )
   }
 
-  private currentAmplifierAgentSessionId(paneKey: string): string | undefined {
-    const row = this.state.lastStatusByPaneKey.get(paneKey)
-    return (
-      this.amplifierAgentBridgeTailer.sessionIdForPane(paneKey, (key) =>
-        this.resolvePaneKeyAlias(key)
-      ) ?? (row?.payload.agentType === 'amplifier-agent' ? row.providerSession?.id : undefined)
-    )
-  }
-
   protected stopLiveFileTailers(clearSessions = false): void {
     this.statusHookInitialization = null
     this.amplifierBridgeTailer.stop()
     this.amplifierAgentBridgeTailer.stop(clearSessions)
     if (clearSessions) {
+      this.statusHookGeneration += 1
       this.amplifierAgentWrappers.clear()
     }
   }
@@ -278,6 +194,8 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
       // Drain before binding so replay cannot race live hooks.
       if (this.endpointDir) {
         const replayedPaneKeys = new Set<string>()
+        // Why: records replay in order, so a per-record allowance would add up across panes.
+        const answerBy = hookRootAnswerDeadline()
         await drainAgentHookSpoolAsync({
           endpointDir: this.endpointDir,
           getPersistedLaunchTokenHash: (paneKey) =>
@@ -286,7 +204,7 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
             if (this.token !== token || this.statusHookGeneration !== statusHookGeneration) {
               throw new Error('Status hook spool replay interrupted')
             }
-            await this.ingestSpoolRecord(record)
+            await this.ingestSpoolRecord(record, answerBy)
             replayedPaneKeys.add(this.resolvePaneKeyAlias(record.paneKey))
           }
         })
@@ -299,6 +217,7 @@ export abstract class AgentHookServerStatusHookLifecycle extends AgentHookServer
         }
       }
       this.ownerStateInitialized = true
+      this.activateClaudeHelperObservations()
     }
     if (isCurrent()) {
       // Existing bytes are history, not observations of this enabled lifecycle.

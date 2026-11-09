@@ -1,7 +1,7 @@
 import {
   normalizeAgentStatusPayload,
   type ParsedAgentStatusPayload
-} from '../../agent-status-types'
+} from '../../agent-status/contracts/agent-status-types'
 import {
   amplifierAgentRosterToSnapshots,
   applyAmplifierAgentSubagentEnd,
@@ -29,7 +29,7 @@ export function normalizeAmplifierAgentEvent(
   paneKey: string,
   hookPayload: Record<string, unknown>
 ): ParsedAgentStatusPayload | null {
-  if (eventName === 'delegate:agent_spawned') {
+  if (eventName === 'delegate:agent_spawned' || eventName === 'delegate:agent_resumed') {
     applyAmplifierAgentSubagentStart(state, paneKey, hookPayload)
   } else if (eventName === 'delegate:agent_completed') {
     applyAmplifierAgentSubagentEnd(state, paneKey, hookPayload, false)

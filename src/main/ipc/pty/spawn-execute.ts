@@ -1,10 +1,14 @@
 import type { PtySpawnResult } from '../../providers/pty-provider-contract'
 import { ptyIncarnationById } from './provider/ownership-state'
-import { ensureWslHookRelayForReattach } from '../../agent-hooks/wsl-hook-relay-reattach'
-import { noteWslDistrosRunning } from '../../wsl-background-distro-gate'
+import { ensureWslHookRelayForReattach } from '../../agent-hooks/wsl-relay/wsl-hook-relay-reattach'
+import {
+  noteWslDistroWoken,
+  noteWslDistrosRunning
+} from '../../wsl/discovery/wsl-background-distro-gate'
 import {
   agentSessionOwners,
   assertSpawnReplyWasLive,
+  assertSpawnRegistrationAllowed,
   reconcileAgentSessionOwnerListings
 } from './pane/agent-session-owners'
 import { resolveStablePaneOwner } from './pane/stable-owner'
@@ -14,7 +18,7 @@ import {
   PaneOwnerContentionError
 } from './pane/pane-spawn-operation'
 import { isRegisteredAgentSessionOwnerLive } from './provider/liveness'
-import type { AgentSessionClaimedSpawnResult } from '../../../shared/agent-session-host-authority'
+import type { AgentSessionClaimedSpawnResult } from '../../../shared/agent-session/agent-session-host-authority'
 import {
   resumeSpawnRefusal,
   SavedResumeFreshRefusal,
@@ -25,6 +29,12 @@ import { failPtySpawnExecute } from './spawn-execute-failure'
 import type { PtySpawnOperationState, PtySpawnExecutionFacts } from './spawn-operation-state'
 import { excludeReplacedPaneOwner } from './pane/replaced-pane-owner'
 import { attachViewWithoutOwner } from './pane/attach-only-view'
+import { wslBridgePtyPresence } from '../../agent-hooks/wsl-relay/wsl-bridge-pty-presence'
+import { isWslTerminalSpawn } from './wsl-terminal-spawn'
+import {
+  beginAmplifierAgentPtyLaunch,
+  releaseAmplifierAgentPtyLaunch
+} from './provider/amplifier-agent-turn-ingress'
 
 export async function executePtySpawn(
   ctx: PtySpawnOperationState,
@@ -89,6 +99,34 @@ export async function executePtySpawn(
         throw new Error('client_disconnected')
       }
       facts.beforeProviderSpawn?.()
+      const env = ctx.spawnOptions.env
+      const launchToken = args.launchToken
+      if (
+        args.launchAgent === 'amplifier-agent' &&
+        !args.connectionId &&
+        !ctx.expectedWslDistro &&
+        !isWslTerminalSpawn(ctx.spawnOptions.shellOverride, ctx.spawnOptions.cwd) &&
+        facts.paneKey &&
+        ctx.cwd &&
+        ctx.amplifierAgentSessionId &&
+        typeof launchToken === 'string' &&
+        launchToken.length > 0 &&
+        launchToken.length <= 128 &&
+        env?.ORCA_AGENT_LAUNCH_TOKEN === launchToken
+      ) {
+        releaseAmplifierAgentPtyLaunch(ctx.amplifierAgentPtyLaunch)
+        ctx.amplifierAgentPtyLaunch = beginAmplifierAgentPtyLaunch({
+          paneKey: facts.paneKey,
+          sessionId: ctx.amplifierAgentSessionId,
+          launchToken,
+          expectedPtyId,
+          cwd: ctx.cwd,
+          home: env.AMPLIFIER_AGENT_HOME ?? process.env.AMPLIFIER_AGENT_HOME,
+          resume:
+            Boolean(args.resumeProviderSession) ||
+            /(?:^|\s)--resume(?:\s|$)/.test(ctx.spawnOptions.command ?? '')
+        })
+      }
     }
     if (args.agentSessionEnsure && !ctx.preAdoptedStablePane) {
       // Claims can outlive this controller; import authoritative owner listings before deciding absence.
@@ -126,10 +164,7 @@ export async function executePtySpawn(
             // Lower-owner success proves physical commit even when registration observes an early exit.
             facts.reportPtySpawnCommitted?.()
             assertSpawnReplyWasLive(providerResult)
-            ctx.deps.runtime?.assertPtyRegistrationAllowed?.(
-              providerResult.id,
-              providerResult.incarnationId
-            )
+            assertSpawnRegistrationAllowed(ctx.deps.runtime, providerResult)
             if (providerResult.incarnationId) {
               // In-process providers cannot list controller claims; record exact incarnation before ownership promotion.
               ptyIncarnationById.set(providerResult.id, providerResult.incarnationId)
@@ -224,7 +259,7 @@ export async function executePtySpawn(
     ) {
       throw new PaneOwnerContentionError()
     }
-    ctx.deps.runtime?.assertPtyRegistrationAllowed?.(ctx.result.id, ctx.result.incarnationId)
+    assertSpawnRegistrationAllowed(ctx.deps.runtime, ctx.result)
     if (ctx.result.providerSequence) {
       const runtimeSequenceBeforeReconcile =
         ctx.deps.runtime?.getPtyOutputSequence?.(ctx.result.id) ?? 0
@@ -246,7 +281,15 @@ export async function executePtySpawn(
       ctx.result.wslDistro === undefined ? ctx.expectedWslDistro : ctx.result.wslDistro
     if (spawnedWslDistro && !args.connectionId) {
       // A local WSL terminal is user-initiated, so background work held for this distro may run.
+      noteWslDistroWoken(spawnedWslDistro)
       noteWslDistrosRunning([spawnedWslDistro])
+      wslBridgePtyPresence.noteLive(ctx.result.id, spawnedWslDistro)
+    } else if (
+      !args.connectionId &&
+      isWslTerminalSpawn(ctx.spawnOptions.shellOverride, ctx.spawnOptions.cwd)
+    ) {
+      // A WSL shell whose distro the spawn didn't report runs in the default distro.
+      wslBridgePtyPresence.noteLive(ctx.result.id, null)
     }
     ctx.deps.runtime?.preparePtyExecutionContext?.(ctx.result.id, spawnedWslDistro)
     ctx.spawnTiming?.mark('provider_spawn')

@@ -1,4 +1,7 @@
-import type { AgentSubagentSnapshot, AgentSubagentState } from './agent-status-types'
+import type {
+  AgentSubagentSnapshot,
+  AgentSubagentState
+} from './agent-status/contracts/agent-status-subagent-snapshot'
 import type { HookListenerState } from './agent-hook-listener/listener-state'
 
 export type TrackedAmplifierAgentSubagent = {

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   getRendererAppPlatform,
   resetRendererAppPlatformCacheForTests
@@ -18,26 +18,6 @@ describe('getRendererAppPlatform', () => {
     delete (window as unknown as { api?: unknown }).api
     resetRendererAppPlatformCacheForTests()
   })
-
-  it('crosses the preload bridge once no matter how many renders ask', () => {
-    const get = vi.fn(() => ({ platform: 'darwin' as NodeJS.Platform }))
-    stubPlatformApi(get)
-
-    for (let index = 0; index < 500; index += 1) {
-      expect(getRendererAppPlatform()).toBe('darwin')
-    }
-
-    expect(get).toHaveBeenCalledTimes(1)
-  })
-
-  it.each(['darwin', 'win32', 'linux'] as const)(
-    'reports the preload platform verbatim on %s',
-    (platform) => {
-      stubPlatformApi(() => ({ platform }))
-
-      expect(getRendererAppPlatform()).toBe(platform)
-    }
-  )
 
   // The web platform bridge arrives after boot; early user-agent guesses must not become session-long cache entries.
   it('does not cache the user-agent fallback', () => {

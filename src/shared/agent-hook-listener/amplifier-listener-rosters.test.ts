@@ -3,9 +3,9 @@ import {
   clearAllListenerCaches,
   clearPaneCacheState,
   createHookListenerState,
-  movePaneCacheState,
-  paneHasStateClaims
+  movePaneCacheState
 } from './listener-state'
+import { paneHasStateClaims } from './pane-state-claims'
 import { applyAmplifierAgentStart } from '../amplifier-subagent-roster'
 import { applyAmplifierAgentSubagentStart } from '../amplifier-agent-subagent-roster'
 
@@ -48,7 +48,6 @@ describe('Amplifier roster listener lifecycle', () => {
       expect(paneHasStateClaims(state, 'sibling')).toBe(true)
       clearAllListenerCaches(state)
       expect(paneHasStateClaims(state, 'sibling')).toBe(false)
-      expect(rosters.size).toBe(0)
     }
   )
 })

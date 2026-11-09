@@ -1,4 +1,8 @@
 import type { SpeechModelManifest } from '../../shared/speech-types'
+import {
+  DICTATION_LANGUAGES,
+  SENSE_VOICE_DICTATION_LANGUAGES
+} from '../../shared/dictation-language'
 import { getSpeechModelDownloadMetadata } from './model-download-catalog'
 
 export const SPEECH_MODEL_CATALOG: SpeechModelManifest[] = [
@@ -63,7 +67,9 @@ export const SPEECH_MODEL_CATALOG: SpeechModelManifest[] = [
     ...getSpeechModelDownloadMetadata('zipformer-streaming-en-20m'),
     sampleRate: 16000,
     streaming: true,
-    modelingUnit: 'bpe'
+    modelingUnit: 'bpe',
+    // The model itself loses the first words of every utterance.
+    replacedBy: 'parakeet-tdt-0.6b-v2-int8'
   },
   {
     id: 'zipformer-streaming-zh-14m',
@@ -108,6 +114,7 @@ export const SPEECH_MODEL_CATALOG: SpeechModelManifest[] = [
     provider: 'local',
     language: 'multilingual',
     ...getSpeechModelDownloadMetadata('whisper-tiny'),
+    dictationLanguages: DICTATION_LANGUAGES,
     sampleRate: 16000,
     streaming: false
   },
@@ -120,6 +127,30 @@ export const SPEECH_MODEL_CATALOG: SpeechModelManifest[] = [
     provider: 'local',
     language: 'multilingual',
     ...getSpeechModelDownloadMetadata('sense-voice-zh-en-ja-ko-yue'),
+    dictationLanguages: SENSE_VOICE_DICTATION_LANGUAGES,
+    sampleRate: 16000,
+    streaming: false
+  },
+  {
+    id: 'openai-gpt-transcribe',
+    label: 'GPT Transcribe',
+    description: 'Cloud transcription with high accuracy. Requires an OpenAI API key.',
+    type: 'openai',
+    provider: 'openai',
+    language: 'multilingual',
+    dictationLanguages: DICTATION_LANGUAGES,
+    sampleRate: 16000,
+    streaming: false
+  },
+  {
+    id: 'openai-compatible',
+    label: 'OpenAI-compatible',
+    description:
+      'Any service with an OpenAI-style transcription API, such as Groq, Mistral or a local server.',
+    type: 'openai',
+    provider: 'openai-compatible',
+    language: 'multilingual',
+    dictationLanguages: DICTATION_LANGUAGES,
     sampleRate: 16000,
     streaming: false
   },
@@ -131,8 +162,11 @@ export const SPEECH_MODEL_CATALOG: SpeechModelManifest[] = [
     type: 'openai',
     provider: 'openai',
     language: 'multilingual',
+    dictationLanguages: DICTATION_LANGUAGES,
     sampleRate: 16000,
-    streaming: false
+    streaming: false,
+    // OpenAI shuts the gpt-4o transcribe models down on 2027-02-26.
+    replacedBy: 'openai-gpt-transcribe'
   },
   {
     id: 'openai-gpt-4o-transcribe',
@@ -141,8 +175,10 @@ export const SPEECH_MODEL_CATALOG: SpeechModelManifest[] = [
     type: 'openai',
     provider: 'openai',
     language: 'multilingual',
+    dictationLanguages: DICTATION_LANGUAGES,
     sampleRate: 16000,
-    streaming: false
+    streaming: false,
+    replacedBy: 'openai-gpt-transcribe'
   }
 ]
 
@@ -152,4 +188,8 @@ export function getCatalogModel(id: string): SpeechModelManifest | undefined {
 
 export function isLocalSpeechModel(manifest: SpeechModelManifest): boolean {
   return manifest.provider === 'local'
+}
+
+export function replaceRetiredSpeechModelId(id: string): string {
+  return getCatalogModel(id)?.replacedBy ?? id
 }
