@@ -10,6 +10,7 @@ import {
 import { nodeFileContentsEqual } from '../../../shared/file-content/node-file-content-equality'
 import { buildUnixCliLauncher } from '../../cli/launchers/cli-dev-launcher'
 import { writeFileAtomically } from '../../filesystem/atomic-file-publication'
+import { durableWriteTempPath, writeFileDurable } from '../../filesystem/durable-file-write'
 import { resolveOrcadInstallRoot, resolveUserDataPath } from '../host-runtime/orcad-app-paths'
 
 // The native Windows launcher selects server mode when this sibling config exists.
@@ -74,7 +75,7 @@ async function prepareAmplifierAgentLauncher(
     : buildUnixCliLauncher(process.execPath, entry, userDataPath, 'node')
   await mkdir(binDir, { recursive: true })
   if ((await readFile(path, 'utf8').catch(() => null)) !== script) {
-    writeFileAtomically(path, script, { mode: 0o700 })
+    await writeFileDurable(durableWriteTempPath(path), path, script, 0o700)
   }
   if (!windows) {
     await chmod(path, 0o700)

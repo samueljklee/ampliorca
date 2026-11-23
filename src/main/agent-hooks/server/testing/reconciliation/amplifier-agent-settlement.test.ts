@@ -8,6 +8,7 @@ import { amplifierAgentEventsPath } from '../../../amplifier-agent-bridge-tailer
 
 const PANE = makePaneKey('tab-settlement', '11111111-1111-4111-8111-111111111111')
 const LAUNCH_TOKEN = 'settlement-launch'
+const OBSERVED_AT = 1_800_000_000_000
 let directory: string
 const servers: AgentHookServer[] = []
 
@@ -136,7 +137,7 @@ describe('host-owned Amplifier delegate settlement', () => {
       hookEventName: 'delegate:agent_spawned',
       payload: { sub_session_id: 'unclaimed', agent: 'builder' },
       launchToken: LAUNCH_TOKEN,
-      receivedAt: Date.now()
+      receivedAt: OBSERVED_AT
     })
     current = false
     await settle(server, through)
@@ -164,7 +165,7 @@ describe('host-owned Amplifier delegate settlement', () => {
       hookEventName: 'delegate:agent_spawned',
       payload: { sub_session_id: 'untrusted', agent: 'builder' },
       launchToken: LAUNCH_TOKEN,
-      receivedAt: Date.now()
+      receivedAt: OBSERVED_AT
     })
     await settle(server, through)
     expect(server.getStatusSnapshotForPane(PANE)[0]).toMatchObject({

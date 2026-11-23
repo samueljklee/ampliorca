@@ -120,7 +120,7 @@ export abstract class AgentHookServerModelWait extends AgentHookServerIngestLive
   }
 
   override transferPaneAuthority(
-    ...args: Parameters<AgentHookServerIngestNormalization['transferPaneAuthority']>
+    ...args: Parameters<AgentHookServerIngestLiveFile['transferPaneAuthority']>
   ): void {
     const [fromPaneKey, toPaneKey] = args
     // The owner the move takes the pane's state from, as the base resolves it.
