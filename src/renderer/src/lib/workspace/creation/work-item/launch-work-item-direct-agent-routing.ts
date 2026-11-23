@@ -3,6 +3,7 @@ import { readAgentLaunchPreferencesForWorkspace } from '@/runtime/agent-launch-s
 import type { AgentLaunchPreferences } from '@/runtime/agent-launch-settings/host-agent-launch-preferences-resource'
 import { agentLaunchCommandErrorMessage } from '@/lib/workspace/creation/work-item/launch-work-item-direct-messages'
 import { toast } from 'sonner'
+import { notifyAgentExitedBeforeLaunchPrompt } from '@/lib/agent-session/launch/prompt/launch-agent-paste-timeout-notice'
 import {
   deliverLaunchPromptToAgentTab,
   seedNativeChatLaunchDraftForAgentTab
@@ -11,7 +12,7 @@ import {
   buildDirectWorkItemAgentStartupPlan,
   notifyDirectWorkItemAgentStartTimeout
 } from '@/lib/workspace/creation/work-item/launch-work-item-direct-agent'
-import { acquireAgentLaunchChoices } from '../../../host-chat-program-acquisition'
+import { acquireAgentLaunchChoices } from '../../../agent-session/launch/inventory/host-chat-program-acquisition'
 import { useAppStore } from '@/store/index'
 import type { TuiAgent } from '../../../../../../shared/agent-launch/catalog/tui-agent'
 import type { AppState } from '@/store/types'
@@ -19,7 +20,7 @@ import { isTuiAgent } from '../../../../../../shared/agent-launch/catalog/tui-ag
 import { isTuiAgentEnabled } from '../../../../../../shared/agent-launch/catalog/tui-agent-selection'
 import { resolveDefaultAgentForWorkspace } from '../../../agent-session/launch/shortcuts/agent-tab-shortcuts'
 import { worktreeLaunchWorkspace } from '@/lib/agent-session/launch/routing/agent-launch-route-input'
-import { agentChoiceMayOpenAsChat } from '@/lib/host-chat-program'
+import { agentChoiceMayOpenAsChat } from '@/lib/agent-session/launch/inventory/host-chat-program'
 import type { AgentSessionLaunchPlan } from '@/lib/agent-session/launch/routing/agent-session-launch-plan'
 import {
   resolveExecutionHostAgentStartupShell,
@@ -205,7 +206,8 @@ export function finishDirectWorkItemPrompt(args: {
       content: draftContent,
       submit,
       forcePaste: submit,
-      onTimeout: () => notifyDirectWorkItemAgentStartTimeout(agent, submit)
+      onTimeout: () => notifyDirectWorkItemAgentStartTimeout(agent, submit),
+      onAgentExited: () => notifyAgentExitedBeforeLaunchPrompt(agent, draftContent)
     })
   }
   return true

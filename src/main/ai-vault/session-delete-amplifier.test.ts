@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { validateAiVaultSessionDeleteTarget } from './session-delete-target'
+import { validateAiVaultSessionDeleteTarget } from './deletion/session-delete-target'
 
 const ROOT = join('/tmp', 'orca-amplifier-delete-fixture')
 

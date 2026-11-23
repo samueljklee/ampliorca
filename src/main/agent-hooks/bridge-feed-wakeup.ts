@@ -1,7 +1,7 @@
 import { watch, type FSWatcher } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { dirname, relative, sep } from 'node:path'
-import { closeFileSystemWatcher } from '../ipc/filesystem/watcher-process/rebinding-file-watch'
+import { closeFileSystemWatcher } from '../ipc/filesystem/watcher-process/native-subscriptions/rebinding-file-watch'
 import { nextRetryDelayMs } from '../sqlite/row-cache/row-cache-failure'
 
 const RETRY = { minMs: 300, maxMs: 30_000 }

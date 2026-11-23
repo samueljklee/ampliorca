@@ -1,8 +1,8 @@
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { amplifierTranscriptPathForMetadata } from '../../../../shared/ai-vault/session-display/ai-vault-session-log-resource'
-import type { AiVaultAgentSource } from '../../session-scanner-agent-sources'
-import { sessionRootDirs } from '../../session-scanner-roots'
+import type { AiVaultAgentSource } from '../../discovery/session-scanner-agent-sources'
+import { sessionRootDirs } from '../../discovery/session-scanner-roots'
 
 const AMPLIFIER_PROJECTS_DIR = join(homedir(), '.amplifier', 'projects')
 

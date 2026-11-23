@@ -6,7 +6,7 @@ import {
   resolveCodexResumeLaunch,
   stripSequencedStartupResumeArgv
 } from './host-env/codex-resume'
-import { resolvePtySpawnHostEnv } from './spawn-host-env'
+import { resolvePtySpawnHostEnv } from './host-env/spawn-host-env'
 
 type HostEnvArgs = Parameters<typeof resolvePtySpawnHostEnv>[0]
 

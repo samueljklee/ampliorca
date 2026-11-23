@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
-import type { IPtyProvider } from '../../../providers/pty-provider-contract'
+import type { IPtyProvider } from '../../../providers/pty/provider-contract'
 import { makePaneKey } from '../../../../shared/workspace-layout/stable-pane-id'
 import { agentHookServer } from '../../../agent-hooks/server/agent-hook-server'
 import { amplifierAgentEventsPath } from '../../../agent-hooks/amplifier-agent-bridge-tailer'
@@ -38,7 +38,8 @@ describe('headless amplifier-agent child-exit ingress', () => {
     rememberPaneKeyForPty('pty-headless', paneKey)
     ptyIncarnationById.set('pty-headless', 'inc-1')
     await agentHookServer.registerAmplifierAgentSession(paneKey, directory, 'current-session', {
-      home: directory
+      home: directory,
+      launchToken: 'headless-launch'
     })
     const file = amplifierAgentEventsPath(directory, directory, 'current-session')
     mkdirSync(dirname(file), { recursive: true })
@@ -65,7 +66,8 @@ describe('headless amplifier-agent child-exit ingress', () => {
         home: directory,
         workspace: basename(directory),
         sessionId: 'current-session',
-        wrapperId: 'run-1'
+        wrapperId: 'run-1',
+        launchToken: 'headless-launch'
       })}\n`
     })
     const original = agentHookServer.settleAmplifierAgentTurnForPane.bind(agentHookServer)

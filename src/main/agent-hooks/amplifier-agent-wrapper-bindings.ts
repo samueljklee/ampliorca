@@ -62,6 +62,8 @@ export async function restoreAmplifierAgentWrapperBinding(
     if (
       !wrapper ||
       wrapper.paneKey !== paneKey ||
+      !wrapper.launchToken ||
+      wrapper.launchToken.length > 128 ||
       !identity ||
       identity.pid !== wrapper.pid ||
       saved.terminal?.ptyId !== terminal.ptyId ||

@@ -30,7 +30,7 @@ describe('Amplifier roster listener lifecycle', () => {
       }
       start('source')
       start('sibling')
-      state.claudeRunningNonAgentTaskPaneKeys.add('source')
+      state.claudeRunningNonAgentTasksByPaneKey.set('source', ['shell-task'])
       expect(paneHasStateClaims(state, 'source')).toBe(true)
       expect(paneHasStateClaims(other, 'source')).toBe(false)
       const rosters =
@@ -41,7 +41,7 @@ describe('Amplifier roster listener lifecycle', () => {
       movePaneCacheState(state, 'source', 'destination')
       expect(rosters.get('destination')).toBe(original)
       expect(paneHasStateClaims(state, 'source')).toBe(false)
-      expect(state.claudeRunningNonAgentTaskPaneKeys.has('destination')).toBe(true)
+      expect(state.claudeRunningNonAgentTasksByPaneKey.get('destination')).toEqual(['shell-task'])
       clearPaneCacheState(state, 'destination')
       expect(paneHasStateClaims(state, 'destination')).toBe(false)
       expect(rosters.has('destination')).toBe(false)

@@ -10,7 +10,7 @@ import {
   isolatedScanRoots,
   jsonLines,
   writeAmplifierScannerFixtures
-} from '../../session-scanner-test-fixtures'
+} from '../../scanner-fixtures/session-scanner-test-fixtures'
 import type { FileWithMtime } from '../../session-scanner-types'
 import type { TranscriptMessage } from '../../transcripts/session-transcript-consumers'
 

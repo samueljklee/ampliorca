@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AgentHookServer, _internals } from '../../agent-hook-server'
+import { AgentHookServer } from '../../agent-hook-server'
 import { PANE } from '../server.test-fixtures'
 import type { SpoolRecord } from '../../../../../shared/agent-hook-listener/transport/agent-hook-spool'
 
@@ -11,7 +11,6 @@ vi.mock('../../../../telemetry/cohort-classifier', () => ({ getCohortAtEmit: () 
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], now: OBSERVED_AT })
-  _internals.resetCachesForTests()
 })
 
 afterEach(() => {

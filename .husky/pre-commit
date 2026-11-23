@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 if git rev-parse --quiet --verify MERGE_HEAD >/dev/null; then
   # Check the complete fork delta, not unchanged incoming upstream files.
-  pnpm exec lint-staged --diff=MERGE_HEAD
+  lint-staged --diff=MERGE_HEAD --quiet
 else
-  pnpm exec lint-staged
+  lint-staged --quiet
 fi

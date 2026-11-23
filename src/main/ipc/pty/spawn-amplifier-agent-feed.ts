@@ -1,5 +1,5 @@
-import type { PtySpawnExecutionFacts, PtySpawnOperationState } from './spawn-operation-state'
-import { isWslTerminalSpawn } from './wsl-terminal-spawn'
+import type { PtySpawnExecutionFacts, PtySpawnOperationState } from './spawn/spawn-operation-state'
+import { isWslTerminalSpawn } from './host-env/wsl-terminal-spawn'
 import {
   beginAmplifierAgentPtyLaunch,
   releaseAmplifierAgentPtyLaunch

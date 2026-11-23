@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import {
   copyFileSync,
   mkdirSync,
@@ -25,16 +25,31 @@ function checkFreshAndResume(binDir, root, envOverrides = {}) {
   const cwd = path.join(root, 'workspace')
   const agentHome = path.join(root, 'agent-home')
   mkdirSync(cwd, { recursive: true })
-  const env = { ...process.env, ...envOverrides, AMPLIFIER_AGENT_HOME: agentHome }
+  const env = {
+    ...process.env,
+    PATH: '/usr/bin:/bin',
+    NODE_OPTIONS: '--require=/nonexistent-loader',
+    NODE_REPL_EXTERNAL_MODULE: '/nonexistent-repl',
+    ELECTRON_RUN_AS_NODE: '1',
+    ...envOverrides,
+    AMPLIFIER_AGENT_HOME: agentHome,
+    ORCA_AGENT_LAUNCH_TOKEN: 'desktop-delivery-proof'
+  }
   const executable = path.join(binDir, 'amplifier-agent-repl')
-  const fresh = execFileSync(executable, ['--session-id', 'fresh-delivery'], {
+  const fresh = spawnSync(executable, ['--session-id', 'fresh-delivery'], {
     cwd,
     env,
     input: '',
     encoding: 'utf8',
     timeout: 10_000
   })
-  expect(fresh).toContain('session fresh-delivery')
+  expect(fresh.status, fresh.stderr).toBe(0)
+  const marker = /^\[amplifier-agent-repl\] bound (.+)$/m.exec(fresh.stderr)
+  expect(JSON.parse(marker?.[1] ?? 'null')).toMatchObject({
+    sessionId: 'fresh-delivery',
+    workspace: 'workspace',
+    launchToken: 'desktop-delivery-proof'
+  })
   expect(readFileSync(path.join(cwd, '.amplifier-agent-session-id'), 'utf8')).toBe('fresh-delivery')
   mkdirSync(
     path.join(
@@ -47,14 +62,20 @@ function checkFreshAndResume(binDir, root, envOverrides = {}) {
     ),
     { recursive: true }
   )
-  const resumed = execFileSync(executable, ['--resume', 'history-delivery'], {
+  const resumed = spawnSync(executable, ['--resume', 'history-delivery'], {
     cwd,
     env,
     input: '',
     encoding: 'utf8',
     timeout: 10_000
   })
-  expect(resumed).toContain('session history-delivery (workspace: original-workspace)')
+  expect(resumed.status, resumed.stderr).toBe(0)
+  const resumedMarker = /^\[amplifier-agent-repl\] bound (.+)$/m.exec(resumed.stderr)
+  expect(JSON.parse(resumedMarker?.[1] ?? 'null')).toMatchObject({
+    sessionId: 'history-delivery',
+    workspace: 'original-workspace',
+    launchToken: 'desktop-delivery-proof'
+  })
 }
 
 describe('Amplifier Agent wrapper delivery', () => {

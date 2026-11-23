@@ -1,8 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
-import type { IPtyProvider, PtySpawnOptions } from '../../../providers/pty-provider-contract'
+import type { IPtyProvider, PtySpawnOptions } from '../../../providers/pty/provider-contract'
 import { agentHookServer } from '../../../agent-hooks/server/agent-hook-server'
 import { amplifierAgentEventsPath } from '../../../agent-hooks/amplifier-agent-bridge-tailer'
 import { restoreAmplifierAgentWrapperBinding } from '../../../agent-hooks/amplifier-agent-wrapper-bindings'
@@ -173,30 +182,47 @@ async function launch(resume = false, lane: 'ipc' | 'runtime' = 'ipc') {
 }
 
 describe('amplifier-agent startup output admission', () => {
-  it('admits early markers only after save, settles the turn and writes recoverable wrapper proof', async () => {
-    const spawned = await launch()
-    expect(agentHookServer.getStatusSnapshotForPane(PANE)).toEqual([])
-    expect(paneKeyPtyId.get(PANE)).toBeUndefined()
-    spawned.save.resolve(true)
-    await spawned.pending
-    expect(agentHookServer.getStatusSnapshotForPane(PANE)[0]).toMatchObject({
-      state: 'working',
-      subagents: [{ id: 'early-delegate', state: 'unverifiable' }]
-    })
-    expect(
-      await restoreAmplifierAgentWrapperBinding(
-        join(directory, 'agent-hooks'),
-        PANE,
-        spawned.terminal
-      )
-    ).toMatchObject({ sessionId: spawned.sessionId, wrapperId: 'early-wrapper' })
-    expect(
-      await restoreAmplifierAgentWrapperBinding(join(directory, 'agent-hooks'), PANE, {
-        ...spawned.terminal,
-        incarnationId: 'replacement'
+  it.runIf(process.platform === 'darwin' || process.platform === 'linux')(
+    'admits early markers only after save, settles the turn and writes recoverable wrapper proof',
+    async () => {
+      const spawned = await launch()
+      expect(agentHookServer.getStatusSnapshotForPane(PANE)).toEqual([])
+      expect(paneKeyPtyId.get(PANE)).toBeUndefined()
+      spawned.save.resolve(true)
+      await spawned.pending
+      expect(agentHookServer.getStatusSnapshotForPane(PANE)[0]).toMatchObject({
+        state: 'working',
+        subagents: [{ id: 'early-delegate', state: 'unverifiable' }]
       })
-    ).toBeUndefined()
-  })
+      expect(
+        await restoreAmplifierAgentWrapperBinding(
+          join(directory, 'agent-hooks'),
+          PANE,
+          spawned.terminal
+        )
+      ).toMatchObject({ sessionId: spawned.sessionId, wrapperId: 'early-wrapper' })
+      expect(
+        await restoreAmplifierAgentWrapperBinding(join(directory, 'agent-hooks'), PANE, {
+          ...spawned.terminal,
+          incarnationId: 'replacement'
+        })
+      ).toBeUndefined()
+      const proofDirectory = join(directory, 'agent-hooks')
+      const proofFile = readdirSync(proofDirectory).find((name) =>
+        name.startsWith('amplifier-agent-')
+      )
+      if (!proofFile) {
+        throw new Error('Wrapper proof was not saved')
+      }
+      const proofPath = join(proofDirectory, proofFile)
+      const proof = JSON.parse(readFileSync(proofPath, 'utf8'))
+      proof.processIdentity.startTime = 'different-process-birth'
+      writeFileSync(proofPath, JSON.stringify(proof))
+      expect(
+        await restoreAmplifierAgentWrapperBinding(proofDirectory, PANE, spawned.terminal)
+      ).toBeUndefined()
+    }
+  )
 
   it('never admits buffered output after a refused durable save', async () => {
     const spawned = await launch()

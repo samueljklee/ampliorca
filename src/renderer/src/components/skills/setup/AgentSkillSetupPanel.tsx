@@ -1,25 +1,31 @@
+import { skillPlanHasDetails } from '@/lib/skills/presentation/skill-freshness-display-status'
+import { SkillSetupRow } from './SkillSetupRow'
 import { bundledSkillSetupActionLabel } from './bundled-skill-setup-copy'
-import { useActiveProjectSkillRuntime } from '@/hooks/useActiveProjectSkillRuntime'
+import { useActiveProjectSkillRuntime } from '@/hooks/skills/runtime/useActiveProjectSkillRuntime'
 import { buildAgentFeatureSkillInstallCommand } from '@/lib/skills/installation/agent-feature-install-commands'
-import { buildSkillCommandForRuntime } from '../../../lib/skill-runtime-command'
+import { buildSkillCommandForRuntime } from '../../../lib/skills/runtime/skill-runtime-command'
 import { WslAgentSkillSetupPanel } from './WslAgentSkillSetupPanel'
 import { useCallback } from 'react'
 import { Download, Loader2, RefreshCw } from 'lucide-react'
-import { IntegrationStatusPill } from '../../integration-status-pill'
-import { SkillPlanStatusPill, SkillUnsupportedStatusPill } from '../SkillFreshnessStatusPill'
+import { IntegrationStatusPill } from '../../integrations/presentation/integration-status-pill'
+import {
+  SkillPlanStatusPill,
+  SkillUnsupportedStatusPill
+} from '../freshness/SkillFreshnessStatusPill'
 import { BundledSkillInstallStatus } from './BundledSkillInstallStatus'
+import { BundledSkillReplaceHint } from './BundledSkillReplaceHint'
 import type { AgentSkillSetupPanelProps } from './agent-skill-setup-panel-props'
 import { Button } from '../../ui/button'
 import {
   bundledSkillInstallNeedsAttention,
   useBundledSkillInstall
-} from '@/hooks/use-bundled-skill-install'
+} from '@/hooks/skills/installation/use-bundled-skill-install'
 import {
   recheckSurfacesAfterAgentSkillInstall,
   syncSurfacesAfterAgentSkillRecheck
-} from '../../../hooks/agent-skill-recheck-surface-sync'
-import { useBundledSkillInstallAction } from '@/hooks/use-bundled-skill-install-action'
-import { cn } from '@/lib/utils'
+} from './agent-skill-recheck-surface-sync'
+import { useBundledSkillInstallAction } from '@/hooks/skills/installation/use-bundled-skill-install-action'
+import { cn } from '@/lib/class-names'
 import { useTranslate } from '@/i18n/use-translate'
 
 function BundledAgentSkillSetupPanel({
@@ -58,7 +64,10 @@ function BundledAgentSkillSetupPanel({
     () => recheckSurfacesAfterAgentSkillInstall(onRecheck, freshnessSkillName),
     [freshnessSkillName, onRecheck]
   )
-  const skillInstall = useBundledSkillInstall({ onFinished: recheckAfterInstall, target })
+  const skillInstall = useBundledSkillInstall({
+    onFinished: recheckAfterInstall,
+    target
+  })
   const { state, ready, install } = skillInstall
   const installing = state.kind === 'installing'
   const activeSkillNames = installed ? (installedSkillNames ?? skillNames) : skillNames
@@ -88,6 +97,7 @@ function BundledAgentSkillSetupPanel({
       skillName={freshnessSkillName ?? activeSkillNames[0]}
       plan={plan ?? null}
       target={target}
+      installed={effectivelyInstalled}
     />
   )
 
@@ -106,37 +116,44 @@ function BundledAgentSkillSetupPanel({
   }
 
   const actionRow = (
-    <div className="mt-3 flex flex-wrap items-center gap-2">
+    <div
+      className={cn('flex flex-wrap items-center gap-2', variant === 'row' ? 'shrink-0' : 'mt-3')}
+    >
       {action.kind !== 'none' &&
       action.kind !== 'unknown' &&
       !unsupported &&
       (!installed || (showInstallWhenInstalled && installedButton)) &&
       !failed ? (
-        <Button
-          type="button"
-          variant={installVariant}
-          size="sm"
-          onClick={startInstall}
-          disabled={installDisabled || installing || !ready || action.kind === 'loading'}
+        <BundledSkillReplaceHint
+          action={action}
+          replacing={!installing && installedButton === 'replace'}
         >
-          {installing ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Download className="size-3.5" />
-          )}
-          {installing
-            ? t('auto.components.settings.AgentSkillSetupPanel.installing', 'Installing...')
-            : installedButton === 'replace'
-              ? t(
-                  'auto.components.settings.AgentSkillSetupPanel.replaceWithOrcaCopy',
-                  "Replace with Orca's copy"
-                )
-              : action.kind === 'run' && action.changes
-                ? bundledSkillSetupActionLabel(action.changes, t)
-                : installed
-                  ? resolvedInstalledInstallLabel
-                  : resolvedInstallLabel}
-        </Button>
+          <Button
+            type="button"
+            variant={installVariant}
+            size="sm"
+            onClick={startInstall}
+            disabled={installDisabled || installing || !ready || action.kind === 'loading'}
+          >
+            {installing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Download className="size-3.5" />
+            )}
+            {installing
+              ? t('auto.components.settings.AgentSkillSetupPanel.installing', 'Installing...')
+              : installedButton === 'replace'
+                ? t(
+                    'auto.components.settings.AgentSkillSetupPanel.replaceWithOrcaCopy',
+                    'Replace with Orca’s'
+                  )
+                : action.kind === 'run' && action.changes
+                  ? bundledSkillSetupActionLabel(action.changes, t)
+                  : installed
+                    ? resolvedInstalledInstallLabel
+                    : resolvedInstallLabel}
+          </Button>
+        </BundledSkillReplaceHint>
       ) : null}
       {!installed || showRecheckWhenInstalled ? (
         <Button
@@ -169,6 +186,37 @@ function BundledAgentSkillSetupPanel({
   // A footer render prop can return nothing; skip the ruled block so it leaves no empty band.
   const footerContent =
     typeof footer === 'function' ? footer('plan' in action ? action.plan : undefined) : footer
+
+  if (variant === 'row') {
+    return (
+      <SkillSetupRow
+        title={title}
+        description={description}
+        actions={actionRow}
+        error={error}
+        className={className}
+      >
+        {unsupported ||
+        action.kind === 'unknown' ||
+        action.kind === 'loading' ||
+        skillPlanHasDetails(plan ?? null, freshnessSkillName ?? activeSkillNames[0]) ? (
+          <div className="mt-1">{freshnessPill}</div>
+        ) : null}
+        <BundledSkillInstallStatus
+          install={skillInstall}
+          unsupported={unsupported}
+          attention={
+            action.kind === 'attention'
+              ? { retry: startInstall, message: action.attentionMessage }
+              : undefined
+          }
+          className="mt-2"
+        />
+        {actionHint}
+        {footerContent}
+      </SkillSetupRow>
+    )
+  }
 
   return (
     <div

@@ -51,7 +51,7 @@ export function prepareDevCliTerminalWrappers({
       }
       writeAgentTerminalWrapper(
         targetDir,
-        `@echo off\r\nnode "${escapeWindowsBatchValue(agentScriptPath)}" %*\r\n`,
+        `@echo off\r\nsetlocal\r\nset "NODE_OPTIONS="\r\nset "NODE_REPL_EXTERNAL_MODULE="\r\nset "ELECTRON_RUN_AS_NODE="\r\n"${escapeWindowsBatchValue(process.execPath)}" "${escapeWindowsBatchValue(agentScriptPath)}" %*\r\n`,
         platform
       )
     }
@@ -65,7 +65,7 @@ export function prepareDevCliTerminalWrappers({
       }
       writeAgentTerminalWrapper(
         targetDir,
-        `#!/usr/bin/env bash\nexec node '${agentScriptPath.replaceAll("'", "'\\''")}' "$@"\n`,
+        `#!/usr/bin/env bash\nunset NODE_OPTIONS NODE_REPL_EXTERNAL_MODULE ELECTRON_RUN_AS_NODE\nexec '${process.execPath.replaceAll("'", "'\\''")}' '${agentScriptPath.replaceAll("'", "'\\''")}' "$@"\n`,
         platform
       )
     }

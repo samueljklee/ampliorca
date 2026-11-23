@@ -1,8 +1,8 @@
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { parseAmplifierAgentSessionContent } from './session-scanner-amplifier-agent-parser'
-import { jsonLines } from '../../session-scanner-test-fixtures'
-import { withFullFirstUserPromptCapture } from '../../session-scanner-first-user-prompt-capture'
+import { jsonLines } from '../../scanner-fixtures/session-scanner-test-fixtures'
+import { withFullFirstUserPromptCapture } from '../../prompts/session-scanner-first-user-prompt-capture'
 import type { TranscriptMessage } from '../../transcripts/session-transcript-consumers'
 
 it('never counts, captures or publishes ephemeral reminders as user prompts', async () => {

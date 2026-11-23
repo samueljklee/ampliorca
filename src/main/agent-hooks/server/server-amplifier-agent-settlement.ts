@@ -1,10 +1,17 @@
-import type { AmplifierAgentTurnSettlement } from '../../../shared/amplifier-agent-turn-settlement'
+import type {
+  AmplifierAgentTurnSettlement,
+  AmplifierAgentWrapperBinding
+} from '../../../shared/amplifier-agent-turn-settlement'
 import {
   amplifierAgentRosterToSnapshots,
   settleAmplifierAgentRosterForPane
 } from '../../../shared/amplifier-agent-subagent-roster'
-import { isLocalHookConnectionId } from '../../../shared/wsl-hook-relay-contract'
+import { isLocalHookConnectionId } from '../../../shared/agent-hook-listener/transport/wsl-hook-relay-contract'
 import { AmplifierAgentBridgeTailer } from '../amplifier-agent-bridge-tailer'
+import {
+  persistAmplifierAgentWrapperBinding,
+  type AmplifierAgentTerminalBinding
+} from '../amplifier-agent-wrapper-bindings'
 import { AgentHookServerRuntimeEnv } from './server-runtime-env'
 import type { EnrichedAgentHookEventPayload } from './server-types'
 
@@ -20,6 +27,52 @@ export abstract class AgentHookServerAmplifierAgentSettlement extends AgentHookS
   protected readonly amplifierAgentBridgeTailer = new AmplifierAgentBridgeTailer(
     (record, isCurrent) => this.ingestLiveFileRecord(record, isCurrent)
   )
+
+  async observeAmplifierAgentWrapper(
+    paneKey: string,
+    wrapper: AmplifierAgentWrapperBinding,
+    terminal: AmplifierAgentTerminalBinding,
+    isCurrent: () => boolean
+  ): Promise<void> {
+    const admission = this.amplifierAgentBridgeTailer.admitWrapper(paneKey, wrapper.sessionId)
+    if (
+      !this.statusHooksEnabled ||
+      !isCurrent() ||
+      wrapper.paneKey !== paneKey ||
+      !admission?.launchToken ||
+      admission.launchToken.length > 128 ||
+      wrapper.launchToken !== admission.launchToken
+    ) {
+      return
+    }
+    const previous = this.amplifierAgentWrappers.get(paneKey)
+    if (previous?.wrapperId === wrapper.wrapperId) {
+      previous.isCurrent = isCurrent
+      return
+    }
+    const generation = this.statusHookGeneration
+    const current = () =>
+      isCurrent() &&
+      generation === this.statusHookGeneration &&
+      this.amplifierAgentBridgeTailer.admitWrapper(paneKey, wrapper.sessionId)?.launchToken ===
+        admission.launchToken &&
+      this.amplifierAgentWrappers.get(paneKey) === previous
+    const proven = this.endpointDir
+      ? await persistAmplifierAgentWrapperBinding(
+          this.endpointDir,
+          { ...wrapper, launchToken: admission.launchToken },
+          terminal,
+          () => current()
+        )
+      : false
+    if (current() && (!previous || proven)) {
+      this.amplifierAgentWrappers.set(paneKey, {
+        wrapperId: wrapper.wrapperId,
+        lastSettledTurn: 0,
+        isCurrent
+      })
+    }
+  }
 
   async settleAmplifierAgentTurnForPane(
     paneKey: string,

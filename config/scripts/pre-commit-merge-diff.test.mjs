@@ -28,7 +28,7 @@ it.each([
   const repo = join(root, 'repo')
   const bin = join(root, 'bin')
   const observation = join(root, 'tasks.jsonl')
-  const invocation = join(root, 'pnpm-args.json')
+  const invocation = join(root, 'lint-staged-args.json')
   const config = join(root, 'lint-staged.json')
   const task = join(root, 'task.cjs')
   const env = {
@@ -108,20 +108,19 @@ it.each([
     const upstreamBefore = readFileSync(join(repo, 'upstream-only.txt'), 'utf8')
 
     writeFileSync(
-      join(bin, 'pnpm'),
+      join(bin, 'lint-staged'),
       [
         '#!/usr/bin/env node',
         "const { spawnSync } = require('node:child_process')",
         "const { writeFileSync } = require('node:fs')",
         'const args = process.argv.slice(2)',
         'writeFileSync(process.env.ORCA_TEST_INVOCATION, JSON.stringify(args))',
-        "if (args[0] !== 'exec' || args[1] !== 'lint-staged') process.exit(2)",
-        "const result = spawnSync(process.execPath, [process.env.ORCA_TEST_LINT_STAGED, ...args.slice(2), '--config', process.env.ORCA_TEST_CONFIG, '--quiet'], { stdio: 'inherit', timeout: 10000, windowsHide: true })",
+        "const result = spawnSync(process.execPath, [process.env.ORCA_TEST_LINT_STAGED, ...args, '--config', process.env.ORCA_TEST_CONFIG], { stdio: 'inherit', timeout: 10000, windowsHide: true })",
         'if (result.error) throw result.error',
         'process.exit(result.status ?? 1)'
       ].join('\n')
     )
-    chmodSync(join(bin, 'pnpm'), 0o755)
+    chmodSync(join(bin, 'lint-staged'), 0o755)
     writeFileSync(
       task,
       [
@@ -146,9 +145,8 @@ it.each([
     expect(result.error).toBeUndefined()
     expect(result.status, result.stdout + result.stderr).toBe(fail ? 1 : 0)
     expect(JSON.parse(readFileSync(invocation, 'utf8'))).toEqual([
-      'exec',
-      'lint-staged',
-      ...(mode === 'merge' ? ['--diff=MERGE_HEAD'] : [])
+      ...(mode === 'merge' ? ['--diff=MERGE_HEAD'] : []),
+      '--quiet'
     ])
     const files =
       mode === 'merge'

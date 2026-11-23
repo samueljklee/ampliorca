@@ -1,6 +1,9 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { writeJsonlFile, type isolatedScanRoots } from '../../session-scanner-test-fixtures'
+import {
+  writeJsonlFile,
+  type isolatedScanRoots
+} from '../../scanner-fixtures/session-scanner-test-fixtures'
 import { writeAmplifierAgentScannerFixture } from '../amplifier-agent/session-scanner-amplifier-agent-fixtures'
 
 export async function writeAmplifierScannerFixtures(

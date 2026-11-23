@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { writeJsonlFile } from '../../session-scanner-test-fixtures'
+import { writeJsonlFile } from '../../scanner-fixtures/session-scanner-test-fixtures'
 
 export async function writeAmplifierAgentScannerFixture(stateDir: string): Promise<void> {
   const agentDir = join(stateDir, 'workspace', 'sessions', 'amplifier-agent-session')

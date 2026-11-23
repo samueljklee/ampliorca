@@ -3,7 +3,7 @@ import { translate } from '@/i18n/i18n'
 import {
   describeSharedDropFailureReason,
   describeSharedDropSkipReason
-} from '@/lib/drop-skip-reason-copy'
+} from '@/lib/files/drop/drop-skip-reason-copy'
 
 export function reportTerminalDropUploadSkipsAndFailures(
   skipped: { reason: string }[],
@@ -39,4 +39,41 @@ export function reportTerminalDropUploadSkipsAndFailures(
       { description: describeSharedDropFailureReason(failed) }
     )
   }
+}
+
+export function reportUnpastedTerminalDropUploads(
+  paths: readonly string[],
+  paneStillOpen: boolean
+): void {
+  const pathList = paths.join('\n')
+  const toastId = toast.message(
+    translate(
+      'terminal.fileDrop.uploadedWithoutPaste',
+      "Upload finished, but the paths couldn't be pasted into the terminal."
+    ),
+    {
+      description: pathList,
+      // Large drops list up to 256 paths; keep the close button on screen.
+      classNames: { description: 'max-h-[50vh] overflow-y-auto whitespace-pre-wrap break-words' },
+      // Parked or reconnected panes may be revisited later; a closed pane was likely closed on purpose.
+      duration: paneStillOpen ? Infinity : undefined,
+      action: {
+        label: translate('terminal.fileDrop.copyUploadedPaths', 'Copy paths'),
+        onClick: (event) => {
+          // Keep the paths visible until the copy succeeds.
+          event.preventDefault()
+          window.api.ui.writeClipboardText(pathList).then(
+            () => toast.dismiss(toastId),
+            () =>
+              toast.error(
+                translate(
+                  'terminal.fileDrop.copyUploadedPathsFailed',
+                  'Could not copy uploaded paths.'
+                )
+              )
+          )
+        }
+      }
+    }
+  )
 }

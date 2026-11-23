@@ -1,5 +1,5 @@
 import type { AiVaultAgent, AiVaultSession } from '../contracts/ai-vault-types'
-import { getRuntimePathBasename } from '../../cross-platform-path'
+import { getRuntimePathBasename } from '../../file-access/cross-platform-path'
 import { isAiVaultSyntheticSessionPath } from '../contracts/ai-vault-session-deletion'
 
 export function amplifierTranscriptPathForMetadata(filePath: string): string {
@@ -47,7 +47,7 @@ const logFileResolvers = {
   codebuddy: jsonlLog,
   qoder: jsonlLog,
   codex: jsonlLog,
-  hermes: jsonLog,
+  hermes: () => null,
   pi: jsonlLog,
   omp: jsonlLog,
   'prime-agent': jsonlLog,

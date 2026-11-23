@@ -1,9 +1,9 @@
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
-import { resolveAbsoluteDirOverride } from '../../../../shared/absolute-dir-override'
+import { resolveAbsoluteDirOverride } from '../../../../shared/file-access/absolute-dir-override'
 import { amplifierAgentTranscriptPathForContextIntelligenceMetadata } from '../../../../shared/ai-vault/session-display/ai-vault-session-log-resource'
-import type { AiVaultAgentSource } from '../../session-scanner-agent-sources'
-import { sessionRootDirs } from '../../session-scanner-roots'
+import type { AiVaultAgentSource } from '../../discovery/session-scanner-agent-sources'
+import { sessionRootDirs } from '../../discovery/session-scanner-roots'
 
 const AMPLIFIER_AGENT_WORKSPACES_DIR = join(
   resolveAbsoluteDirOverride(process.env.AMPLIFIER_AGENT_HOME, join(homedir(), '.amplifier-agent')),
